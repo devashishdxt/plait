@@ -1,0 +1,10 @@
+[package]
+name = "spool"
+version = "0.1.0"
+description = "A modern HTML templating library for Rust that embraces composition."
+edition = "2024"
+
+[dependencies]
+itoa.workspace = true
+ryu.workspace = true
+thiserror.workspace = true
