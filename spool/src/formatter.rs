@@ -110,17 +110,51 @@ impl<'a> HtmlFormatter<'a> {
         Ok(())
     }
 
-    /// Writes a boolean attribute to the current element.
-    pub fn write_boolean_attribute(&mut self, name: &str) -> Result<(), Error> {
-        // Boolean attributes have no value (e.g., `disabled`, `checked`). Returns `Error::AttributeOutsideTag` if not
-        // in `TagOpened` state.
+    /// Writes an optional attribute to the current element.
+    pub fn write_optional_attribute(
+        &mut self,
+        name: &str,
+        value: Option<impl Render>,
+        escape_mode: Option<EscapeMode>,
+    ) -> Result<(), Error> {
+        // Optional attributes are only written when the value is `Some(_)`. Returns `Error::AttributeOutsideTag` if
+        // not in `TagOpened` state.
 
-        if self.state != FormatterState::TagOpened {
+        if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
             return Err(Error::AttributeOutsideTag);
         }
 
-        self.output.push(' ');
-        self.output.push_str(name);
+        if let Some(value) = value {
+            let resolved_escape_mode = resolve_escape_mode_for_attribute(
+                self.element_stack.last().unwrap().name,
+                name,
+                escape_mode,
+            );
+
+            self.output.push(' ');
+            self.output.push_str(name);
+            self.output.push_str("=\"");
+            value.render(&mut self.output, resolved_escape_mode)?;
+            self.output.push('"');
+        }
+
+        Ok(())
+    }
+
+    /// Writes a boolean attribute to the current element.
+    pub fn write_boolean_attribute(&mut self, name: &str, value: bool) -> Result<(), Error> {
+        // Boolean attributes have no value (e.g., `disabled`, `checked`). Returns `Error::AttributeOutsideTag` if not
+        // in `TagOpened` state.
+
+        if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
+            return Err(Error::AttributeOutsideTag);
+        }
+
+        if value {
+            self.output.push(' ');
+            self.output.push_str(name);
+        }
+
         Ok(())
     }
 
@@ -298,16 +332,29 @@ mod tests {
     }
 
     #[test]
-    fn test_boolean_attribute() {
+    fn test_boolean_attribute_true() {
         let mut output = String::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("input");
         fmt.write_attribute("type", "checkbox", None).unwrap();
-        fmt.write_boolean_attribute("checked").unwrap();
+        fmt.write_boolean_attribute("checked", true).unwrap();
         fmt.end_element().unwrap();
 
         assert_eq!(output, "<input type=\"checkbox\" checked>");
+    }
+
+    #[test]
+    fn test_boolean_attribute_false() {
+        let mut output = String::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        fmt.start_element("input");
+        fmt.write_attribute("type", "checkbox", None).unwrap();
+        fmt.write_boolean_attribute("checked", false).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<input type=\"checkbox\">");
     }
 
     #[test]
@@ -340,5 +387,74 @@ mod tests {
         fmt.start_element("br");
         let result = fmt.write_content("Content", None);
         assert!(matches!(result, Err(Error::ContentInVoidElement)));
+    }
+
+    #[test]
+    fn test_optional_attribute_with_some() {
+        let mut output = String::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        fmt.start_element("div");
+        fmt.write_optional_attribute("class", Some("container"), None)
+            .unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div class=\"container\"></div>");
+    }
+
+    #[test]
+    fn test_optional_attribute_with_none() {
+        let mut output = String::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        fmt.start_element("div");
+        fmt.write_optional_attribute("class", None::<&str>, None)
+            .unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div></div>");
+    }
+
+    #[test]
+    fn test_optional_attribute_mixed() {
+        let mut output = String::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        fmt.start_element("div");
+        fmt.write_optional_attribute("id", Some("main"), None)
+            .unwrap();
+        fmt.write_optional_attribute("class", None::<&str>, None)
+            .unwrap();
+        fmt.write_optional_attribute("data-value", Some("test"), None)
+            .unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div id=\"main\" data-value=\"test\"></div>");
+    }
+
+    #[test]
+    fn test_optional_attribute_outside_tag_error() {
+        let mut output = String::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        fmt.start_element("div");
+        fmt.write_content("Content", None).unwrap();
+
+        // Now in InContent state, optional attribute should fail
+        let result = fmt.write_optional_attribute("class", Some("test"), None);
+        assert!(matches!(result, Err(Error::AttributeOutsideTag)));
+    }
+
+    #[test]
+    fn test_optional_attribute_escaping() {
+        let mut output = String::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        fmt.start_element("div");
+        fmt.write_optional_attribute("data-value", Some("a\"b<c>d"), None)
+            .unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div data-value=\"a&quot;b&lt;c&gt;d\"></div>");
     }
 }
