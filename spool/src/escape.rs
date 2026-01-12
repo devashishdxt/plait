@@ -17,7 +17,7 @@ pub fn resolve_escape_mode_for_element(
     _name: Option<&str>,
     provided: Option<EscapeMode>,
 ) -> EscapeMode {
-    provided.unwrap_or(EscapeMode::Html) // TODO: filter based on name, for example, `script` should be `JS`
+    provided.unwrap_or(EscapeMode::Html) // TODO: filter based on name, for example, `script` should be `Js`
 }
 
 /// Resolves the escape mode for an attribute based on attribute name and parent element name.
@@ -26,5 +26,5 @@ pub fn resolve_escape_mode_for_attribute(
     _name: &str,
     provided: Option<EscapeMode>,
 ) -> EscapeMode {
-    provided.unwrap_or(EscapeMode::Html) // TODO: filter based on name
+    provided.unwrap_or(EscapeMode::Html) // TODO: filter based on name, for example, `href` should be `Url`
 }

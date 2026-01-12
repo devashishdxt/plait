@@ -52,9 +52,9 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Closes the current opening tag if one is pending.
-    ///
-    /// This writes the `>` character to transition from `TagOpened` to `InContent`.
     fn close_pending_tag(&mut self) {
+        // This writes the `>` character to transition from `TagOpened` to `InContent`.
+
         if self.state == FormatterState::TagOpened {
             self.output.push('>');
             self.state = FormatterState::InContent;
@@ -62,10 +62,10 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Starts a new HTML element.
-    ///
-    /// This writes `<name` to the output and transitions to the `TagOpened` state. If currently in `TagOpened` state,
-    /// the pending tag is closed first.
     pub fn start_element(&mut self, name: &'a str) {
+        // This writes `<name` to the output and transitions to the `TagOpened` state. If currently in `TagOpened`
+        // state, the pending tag is closed first.
+
         // Close any pending tag first
         self.close_pending_tag();
 
@@ -83,15 +83,15 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Writes an attribute to the current element.
-    ///
-    /// This can only be called when in the `TagOpened` state (after `start_element` but before any content or
-    /// `end_element`). Returns `Error::AttributeOutsideTag` if not in `TagOpened` state.
     pub fn write_attribute(
         &mut self,
         name: &str,
         value: impl Render,
         escape_mode: Option<EscapeMode>,
     ) -> Result<(), Error> {
+        // This can only be called when in the `TagOpened` state (after `start_element` but before any content or
+        // `end_element`). Returns `Error::AttributeOutsideTag` if not in `TagOpened` state.
+
         if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
             return Err(Error::AttributeOutsideTag);
         }
@@ -111,10 +111,10 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Writes a boolean attribute to the current element.
-    ///
-    /// Boolean attributes have no value (e.g., `disabled`, `checked`). Returns `Error::AttributeOutsideTag` if not in
-    /// `TagOpened` state.
     pub fn write_boolean_attribute(&mut self, name: &str) -> Result<(), Error> {
+        // Boolean attributes have no value (e.g., `disabled`, `checked`). Returns `Error::AttributeOutsideTag` if not
+        // in `TagOpened` state.
+
         if self.state != FormatterState::TagOpened {
             return Err(Error::AttributeOutsideTag);
         }
@@ -125,15 +125,15 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Writes content inside the current element.
-    ///
-    /// If in TagOpened state, the tag is closed first by writing `>`. The content is rendered according to the
-    /// `escape_mode` and current element context. Returns `Error::ContentInVoidElement` if the current element is a
-    /// void element.
     pub fn write_content(
         &mut self,
         content: impl Render,
         escape_mode: Option<EscapeMode>,
     ) -> Result<(), Error> {
+        // If in `TagOpened` state, the tag is closed first by writing `>`. The content is rendered according to the
+        // `escape_mode` and current element context. Returns `Error::ContentInVoidElement` if the current element is a
+        // void element.
+
         // Check if we're trying to write content to a void element
         if let Some(entry) = self.element_stack.last() {
             if entry.is_void && self.state == FormatterState::TagOpened {
@@ -154,10 +154,10 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Ends the current element.
-    ///
-    /// For void elements in TagOpened state, writes `>`. For normal elements, writes `</name>`. Returns
-    /// `Error::NoElementToClose` if no element is currently open.
     pub fn end_element(&mut self) -> Result<(), Error> {
+        // For void elements in `TagOpened` state, writes `>`. For normal elements, writes `</name>`. Returns
+        // `Error::NoElementToClose` if no element is currently open.
+
         let entry = self.element_stack.pop().ok_or(Error::NoElementToClose)?;
 
         if entry.is_void {
@@ -188,6 +188,16 @@ impl<'a> HtmlFormatter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_simple_string() {
+        let mut output = String::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        fmt.write_content("Hello", None).unwrap();
+
+        assert_eq!(output, "Hello");
+    }
 
     #[test]
     fn test_simple_element() {

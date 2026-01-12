@@ -1,5 +1,8 @@
 use core::{fmt, ops::Deref};
 
+/// `<!DOCTYPE html>`
+pub const DOCTYPE: PreEscaped<'static> = PreEscaped("<!DOCTYPE html>");
+
 /// A pre-escaped string slice known to contain safe HTML.
 pub struct PreEscaped<'a>(pub &'a str);
 

@@ -1,5 +1,6 @@
 use crate::Error;
 
+/// Escapes HTML special characters in a string.
 pub fn escape_html(output: &mut String, s: &str) -> Result<(), Error> {
     // Fast path: if there are no bytes that need escaping, write once and return.
     if !needs_html_escape(s) {
