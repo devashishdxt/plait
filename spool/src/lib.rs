@@ -1,3 +1,4 @@
+mod attributes;
 mod error;
 mod escape;
 mod formatter;
@@ -6,6 +7,7 @@ mod pre_escaped;
 mod render;
 
 pub use self::{
+    attributes::Attributes,
     error::Error,
     escape::EscapeMode,
     formatter::HtmlFormatter,

@@ -5,6 +5,7 @@ description = "A modern HTML templating library for Rust that embraces compositi
 edition = "2024"
 
 [dependencies]
+indexmap.workspace = true
 itoa.workspace = true
 ryu.workspace = true
 thiserror.workspace = true

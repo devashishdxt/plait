@@ -3,9 +3,15 @@ use core::{fmt, ops::Deref};
 use crate::PreEscaped;
 
 /// A html string known to contain safe HTML.
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Html(pub String);
 
 impl Html {
+    /// Creates a new empty `Html` string.
+    pub fn new() -> Self {
+        Html(String::new())
+    }
+
     /// Returns a reference to the pre-escaped string.
     pub fn as_pre_escaped(&self) -> PreEscaped<'_> {
         PreEscaped(&self.0)
@@ -41,5 +47,11 @@ impl fmt::Display for Html {
 impl From<Html> for String {
     fn from(value: Html) -> Self {
         value.0
+    }
+}
+
+impl PartialEq<&str> for Html {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
     }
 }

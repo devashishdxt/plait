@@ -3,6 +3,10 @@ members = ["spool", "spool-macros"]
 resolver = "3"
 
 [workspace.dependencies]
+indexmap = "2.13.0"
 itoa = "1.0.17"
+proc-macro2 = "1.0.105"
+quote = "1.0.43"
 ryu = "1.0.22"
+syn = { version = "2.0.114", features = ["full", "extra-traits"] }
 thiserror = "2.0.17"

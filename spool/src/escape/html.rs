@@ -1,11 +1,11 @@
-use crate::Error;
+use crate::Html;
 
-/// Escapes HTML special characters in a string.
-pub fn escape_html(output: &mut String, s: &str) -> Result<(), Error> {
+/// Escapes HTML special characters in a string and writes the result to the output HTML.
+pub fn escape_html(output: &mut Html, s: &str) {
     // Fast path: if there are no bytes that need escaping, write once and return.
     if !needs_html_escape(s) {
-        output.push_str(s);
-        return Ok(());
+        output.0.push_str(s);
+        return;
     }
 
     let bytes = s.as_bytes();
@@ -29,19 +29,17 @@ pub fn escape_html(output: &mut String, s: &str) -> Result<(), Error> {
         // `i` is guaranteed to be on a UTF-8 boundary here: these ASCII bytes cannot occur inside a multibyte UTF-8
         // sequence.
         if last < i {
-            output.push_str(&s[last..i]);
+            output.0.push_str(&s[last..i]);
         }
-        output.push_str(replacement);
+        output.0.push_str(replacement);
 
         i += 1; // consumed the ASCII byte
         last = i; // next chunk starts after it
     }
 
     if last < s.len() {
-        output.push_str(&s[last..]);
+        output.0.push_str(&s[last..]);
     }
-
-    Ok(())
 }
 
 #[inline]
@@ -57,29 +55,29 @@ mod tests {
 
     #[test]
     fn escape_html_basic() {
-        let mut output = String::new();
-        escape_html(&mut output, "Hello, World!").unwrap();
+        let mut output = Html::new();
+        escape_html(&mut output, "Hello, World!");
         assert_eq!(output, "Hello, World!");
     }
 
     #[test]
     fn escape_html_quotes() {
-        let mut output = String::new();
-        escape_html(&mut output, r#"He said "hello""#).unwrap();
+        let mut output = Html::new();
+        escape_html(&mut output, r#"He said "hello""#);
         assert_eq!(output, "He said &quot;hello&quot;");
     }
 
     #[test]
     fn escape_html_single_quotes() {
-        let mut output = String::new();
-        escape_html(&mut output, "It's fine").unwrap();
+        let mut output = Html::new();
+        escape_html(&mut output, "It's fine");
         assert_eq!(output, "It&#39;s fine");
     }
 
     #[test]
     fn escape_html_all_special() {
-        let mut output = String::new();
-        escape_html(&mut output, "<\"'>&").unwrap();
+        let mut output = Html::new();
+        escape_html(&mut output, "<\"'>&");
         assert_eq!(output, "&lt;&quot;&#39;&gt;&amp;");
     }
 
@@ -95,15 +93,15 @@ mod tests {
 
     #[test]
     fn escape_unicode() {
-        let mut output = String::new();
-        escape_html(&mut output, "Hello <世界>").unwrap();
+        let mut output = Html::new();
+        escape_html(&mut output, "Hello <世界>");
         assert_eq!(output, "Hello &lt;世界&gt;");
     }
 
     #[test]
     fn escape_empty_string() {
-        let mut output = String::new();
-        escape_html(&mut output, "").unwrap();
+        let mut output = Html::new();
+        escape_html(&mut output, "");
         assert_eq!(output, "");
     }
 }

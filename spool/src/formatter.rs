@@ -1,17 +1,25 @@
-use crate::{
-    Error, EscapeMode, Render,
-    escape::{resolve_escape_mode_for_attribute, resolve_escape_mode_for_element},
-};
-
-/// List of HTML void elements that cannot have content or closing tags.
-const VOID_ELEMENTS: &[&str] = &[
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
-    "track", "wbr",
-];
+use crate::{Attributes, Error, EscapeMode, Html, Render, escape::resolve_escape_mode_for_element};
 
 /// Returns true if the given element name is a void element.
+/// Expects the name to be in ASCII lowercase.
 fn is_void_element(name: &str) -> bool {
-    VOID_ELEMENTS.contains(&name.to_ascii_lowercase().as_str())
+    matches!(
+        name,
+        "area"
+            | "base"
+            | "br"
+            | "col"
+            | "embed"
+            | "hr"
+            | "img"
+            | "input"
+            | "link"
+            | "meta"
+            | "param"
+            | "source"
+            | "track"
+            | "wbr"
+    )
 }
 
 /// The current state of the formatter state machine.
@@ -29,21 +37,22 @@ enum FormatterState {
 }
 
 /// An entry in the element stack, tracking the element name and whether it's a void element.
-struct ElementEntry<'a> {
-    name: &'a str,
+struct ElementEntry {
+    name: &'static str,
     is_void: bool,
+    attributes: Attributes,
 }
 
 /// Formatter for HTML output.
 pub struct HtmlFormatter<'a> {
-    output: &'a mut String,
-    element_stack: Vec<ElementEntry<'a>>,
+    output: &'a mut Html,
+    element_stack: Vec<ElementEntry>,
     state: FormatterState,
 }
 
 impl<'a> HtmlFormatter<'a> {
     /// Creates a new `HtmlFormatter` with the given output.
-    pub fn new(output: &'a mut String) -> Self {
+    pub fn new(output: &'a mut Html) -> Self {
         HtmlFormatter {
             output,
             element_stack: Vec::new(),
@@ -54,15 +63,23 @@ impl<'a> HtmlFormatter<'a> {
     /// Closes the current opening tag if one is pending.
     fn close_pending_tag(&mut self) {
         // This writes the `>` character to transition from `TagOpened` to `InContent`.
+        if self.state == FormatterState::TagOpened && !self.element_stack.is_empty() {
+            self.element_stack
+                .last()
+                .unwrap()
+                .attributes
+                .render_to(&mut self.output, EscapeMode::Raw)
+                .unwrap();
 
-        if self.state == FormatterState::TagOpened {
-            self.output.push('>');
+            self.output.0.push('>');
             self.state = FormatterState::InContent;
         }
     }
 
     /// Starts a new HTML element.
-    pub fn start_element(&mut self, name: &'a str) {
+    ///
+    /// Note: `name` should be in ASCII lowercase for correct void element detection.
+    pub fn start_element(&mut self, name: &'static str) {
         // This writes `<name` to the output and transitions to the `TagOpened` state. If currently in `TagOpened`
         // state, the pending tag is closed first.
 
@@ -70,13 +87,14 @@ impl<'a> HtmlFormatter<'a> {
         self.close_pending_tag();
 
         // Write the opening tag start
-        self.output.push('<');
-        self.output.push_str(name);
+        self.output.0.push('<');
+        self.output.0.push_str(name);
 
         // Push to element stack
         self.element_stack.push(ElementEntry {
             name,
             is_void: is_void_element(name),
+            attributes: Attributes::new(),
         });
 
         self.state = FormatterState::TagOpened;
@@ -85,7 +103,7 @@ impl<'a> HtmlFormatter<'a> {
     /// Writes an attribute to the current element.
     pub fn write_attribute(
         &mut self,
-        name: &str,
+        name: &'static str,
         value: impl Render,
         escape_mode: Option<EscapeMode>,
     ) -> Result<(), Error> {
@@ -96,24 +114,18 @@ impl<'a> HtmlFormatter<'a> {
             return Err(Error::AttributeOutsideTag);
         }
 
-        let resolved_escape_mode = resolve_escape_mode_for_attribute(
-            self.element_stack.last().unwrap().name,
-            name,
-            escape_mode,
-        );
+        let element = self.element_stack.last_mut().unwrap();
+        element
+            .attributes
+            .add(element.name, name, value, escape_mode)?;
 
-        self.output.push(' ');
-        self.output.push_str(name);
-        self.output.push_str("=\"");
-        value.render(&mut self.output, resolved_escape_mode)?;
-        self.output.push('"');
         Ok(())
     }
 
     /// Writes an optional attribute to the current element.
     pub fn write_optional_attribute(
         &mut self,
-        name: &str,
+        name: &'static str,
         value: Option<impl Render>,
         escape_mode: Option<EscapeMode>,
     ) -> Result<(), Error> {
@@ -124,25 +136,20 @@ impl<'a> HtmlFormatter<'a> {
             return Err(Error::AttributeOutsideTag);
         }
 
-        if let Some(value) = value {
-            let resolved_escape_mode = resolve_escape_mode_for_attribute(
-                self.element_stack.last().unwrap().name,
-                name,
-                escape_mode,
-            );
-
-            self.output.push(' ');
-            self.output.push_str(name);
-            self.output.push_str("=\"");
-            value.render(&mut self.output, resolved_escape_mode)?;
-            self.output.push('"');
-        }
+        let element = self.element_stack.last_mut().unwrap();
+        element
+            .attributes
+            .add_optional(element.name, name, value, escape_mode)?;
 
         Ok(())
     }
 
     /// Writes a boolean attribute to the current element.
-    pub fn write_boolean_attribute(&mut self, name: &str, value: bool) -> Result<(), Error> {
+    pub fn write_boolean_attribute(
+        &mut self,
+        name: &'static str,
+        value: bool,
+    ) -> Result<(), Error> {
         // Boolean attributes have no value (e.g., `disabled`, `checked`). Returns `Error::AttributeOutsideTag` if not
         // in `TagOpened` state.
 
@@ -150,10 +157,8 @@ impl<'a> HtmlFormatter<'a> {
             return Err(Error::AttributeOutsideTag);
         }
 
-        if value {
-            self.output.push(' ');
-            self.output.push_str(name);
-        }
+        let element = self.element_stack.last_mut().unwrap();
+        element.attributes.add_boolean(name, value)?;
 
         Ok(())
     }
@@ -182,7 +187,7 @@ impl<'a> HtmlFormatter<'a> {
         let element_name = self.element_stack.last().map(|e| e.name);
         let resolved_escape_mode = resolve_escape_mode_for_element(element_name, escape_mode);
 
-        content.render(&mut self.output, resolved_escape_mode)?;
+        content.render_to(&mut self.output, resolved_escape_mode)?;
 
         Ok(())
     }
@@ -194,18 +199,22 @@ impl<'a> HtmlFormatter<'a> {
 
         let entry = self.element_stack.pop().ok_or(Error::NoElementToClose)?;
 
-        if entry.is_void {
-            // Void elements: just close the tag with >
-            if self.state == FormatterState::TagOpened {
-                self.output.push('>');
-            }
-            // Note: void elements shouldn't have closing tags in HTML5
-        } else {
+        if self.state == FormatterState::TagOpened {
+            entry
+                .attributes
+                .render_to(&mut self.output, EscapeMode::Raw)
+                .unwrap();
+
+            self.output.0.push('>');
+        }
+
+        // Note: void elements shouldn't have closing tags in HTML5
+        if !entry.is_void {
             // Normal elements: close pending tag and write closing tag
             self.close_pending_tag();
-            self.output.push_str("</");
-            self.output.push_str(entry.name);
-            self.output.push('>');
+            self.output.0.push_str("</");
+            self.output.0.push_str(entry.name);
+            self.output.0.push('>');
         }
 
         // Update state based on whether there are more elements on the stack
@@ -225,7 +234,7 @@ mod tests {
 
     #[test]
     fn test_simple_string() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.write_content("Hello", None).unwrap();
@@ -235,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_simple_element() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -247,7 +256,7 @@ mod tests {
 
     #[test]
     fn test_element_with_attributes() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -261,7 +270,7 @@ mod tests {
 
     #[test]
     fn test_nested_elements() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -275,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_void_element() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -291,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_content_escaping() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -307,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_attribute_escaping() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -321,7 +330,7 @@ mod tests {
     fn test_raw_content() {
         use crate::PreEscaped;
 
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -333,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_boolean_attribute_true() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("input");
@@ -346,7 +355,7 @@ mod tests {
 
     #[test]
     fn test_boolean_attribute_false() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("input");
@@ -359,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_attribute_outside_tag_error() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -372,7 +381,7 @@ mod tests {
 
     #[test]
     fn test_no_element_to_close_error() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         let result = fmt.end_element();
@@ -381,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_content_in_void_element_error() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("br");
@@ -391,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_optional_attribute_with_some() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -404,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_optional_attribute_with_none() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -417,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_optional_attribute_mixed() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -434,7 +443,7 @@ mod tests {
 
     #[test]
     fn test_optional_attribute_outside_tag_error() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
@@ -447,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_optional_attribute_escaping() {
-        let mut output = String::new();
+        let mut output = Html::new();
         let mut fmt = HtmlFormatter::new(&mut output);
 
         fmt.start_element("div");
