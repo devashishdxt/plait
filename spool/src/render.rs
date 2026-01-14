@@ -1,47 +1,44 @@
 use crate::{EscapeMode, escape::escape_html};
 
-use super::{Error, Html, PreEscaped};
+use super::{Html, PreEscaped};
 
 /// Trait for rendering HTML content into an output.
 pub trait Render {
     /// Renders the HTML content into the provided output.
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) -> Result<(), Error>;
+    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode);
 
     /// Renders the HTML content into a new `Html` instance.
-    fn render(&self, escape_mode: EscapeMode) -> Result<Html, Error> {
+    fn render(&self, escape_mode: EscapeMode) -> Html {
         let mut output = Html::new();
-        self.render_to(&mut output, escape_mode)?;
-        Ok(output)
+        self.render_to(&mut output, escape_mode);
+        output
     }
 }
 
 impl Render for str {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
         match escape_mode {
             EscapeMode::Raw => output.0.push_str(self),
             EscapeMode::Html => escape_html(output, self),
         }
-        Ok(())
     }
 }
 
 impl Render for String {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
         self.as_str().render_to(output, escape_mode)
     }
 }
 
 impl Render for PreEscaped<'_> {
-    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
         output.0.push_str(self.0);
-        Ok(())
     }
 }
 
 impl Render for Html {
-    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
         output.0.push_str(&self.0);
-        Ok(())
     }
 }
 
@@ -53,10 +50,9 @@ macro_rules! impl_render_for_int {
                     &self,
                     output: &mut Html,
                     _escape_mode: EscapeMode,
-                ) -> Result<(), Error> {
+                ) {
                     let mut buf = itoa::Buffer::new();
                     output.0.push_str(buf.format(*self));
-                    Ok(())
                 }
             }
         )*
@@ -75,10 +71,9 @@ macro_rules! impl_render_for_float {
                     &self,
                     output: &mut Html,
                     _escape_mode: EscapeMode,
-                ) -> Result<(), Error> {
+                ) {
                     let mut buf = ryu::Buffer::new();
                     output.0.push_str(buf.format(*self));
-                    Ok(())
                 }
             }
         )*
@@ -88,14 +83,13 @@ macro_rules! impl_render_for_float {
 impl_render_for_float!(f32, f64);
 
 impl Render for bool {
-    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
         output.0.push_str(if *self { "true" } else { "false" });
-        Ok(())
     }
 }
 
 impl Render for char {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
         let mut buf = [0u8; 4];
         let s = self.encode_utf8(&mut buf);
         s.render_to(output, escape_mode)
@@ -106,7 +100,7 @@ impl<T> Render for &T
 where
     T: Render + ?Sized,
 {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
         (**self).render_to(output, escape_mode)
     }
 }
@@ -115,7 +109,7 @@ impl<T> Render for &mut T
 where
     T: Render + ?Sized,
 {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
         (**self).render_to(output, escape_mode)
     }
 }
@@ -124,7 +118,18 @@ impl<T> Render for Box<T>
 where
     T: Render + ?Sized,
 {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) -> Result<(), Error> {
+    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
         (**self).render_to(output, escape_mode)
+    }
+}
+
+impl<T> Render for Option<T>
+where
+    T: Render,
+{
+    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
+        if let Some(this) = self {
+            this.render_to(output, escape_mode)
+        }
     }
 }

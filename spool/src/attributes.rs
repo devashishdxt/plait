@@ -1,8 +1,9 @@
 use indexmap::IndexMap;
 
-use crate::{Error, EscapeMode, Html, Render, escape::resolve_escape_mode_for_attribute};
+use crate::{EscapeMode, Html, Render, escape::resolve_escape_mode_for_attribute};
 
 /// Collection of attributes for an HTML element.
+#[derive(Default)]
 pub struct Attributes {
     attributes: IndexMap<&'static str, Option<Html>>,
 }
@@ -22,7 +23,7 @@ impl Attributes {
         name: &'static str,
         value: impl Render,
         escape_mode: Option<EscapeMode>,
-    ) -> Result<(), Error> {
+    ) {
         let resolved_escape_mode = resolve_escape_mode_for_attribute(parent, name, escape_mode);
 
         if name == "class" {
@@ -30,17 +31,15 @@ impl Attributes {
 
             if let Some(Some(existing)) = existing {
                 existing.0.push(' ');
-                value.render_to(existing, resolved_escape_mode)?;
+                value.render_to(existing, resolved_escape_mode);
             } else {
                 self.attributes
-                    .insert(name, Some(value.render(resolved_escape_mode)?));
+                    .insert(name, Some(value.render(resolved_escape_mode)));
             }
         } else {
             self.attributes
-                .insert(name, Some(value.render(resolved_escape_mode)?));
+                .insert(name, Some(value.render(resolved_escape_mode)));
         }
-
-        Ok(())
     }
 
     /// Adds an optional attribute to the collection.
@@ -50,21 +49,17 @@ impl Attributes {
         name: &'static str,
         value: Option<impl Render>,
         escape_mode: Option<EscapeMode>,
-    ) -> Result<(), Error> {
+    ) {
         if let Some(value) = value {
-            self.add(parent, name, value, escape_mode)?;
+            self.add(parent, name, value, escape_mode);
         }
-
-        Ok(())
     }
 
     /// Adds a boolean attribute to the collection.
-    pub fn add_boolean(&mut self, name: &'static str, value: bool) -> Result<(), Error> {
+    pub fn add_boolean(&mut self, name: &'static str, value: bool) {
         if value {
             self.attributes.insert(name, None);
         }
-
-        Ok(())
     }
 
     /// Merges another set of attributes into this collection.
@@ -76,7 +71,7 @@ impl Attributes {
 
                     if let Some(Some(existing)) = existing {
                         existing.0.push(' ');
-                        value.render_to(existing, EscapeMode::Raw).unwrap();
+                        value.render_to(existing, EscapeMode::Raw);
                     } else {
                         self.attributes.insert(name, Some(value));
                     }
@@ -89,8 +84,7 @@ impl Attributes {
 }
 
 impl Render for Attributes {
-    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) -> Result<(), Error> {
-        println!("Rendering");
+    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
         for (name, value) in self.attributes.iter() {
             output.0.push(' ');
             output.0.push_str(name);
@@ -101,8 +95,6 @@ impl Render for Attributes {
                 output.0.push('"');
             }
         }
-
-        Ok(())
     }
 }
 
@@ -131,7 +123,7 @@ mod tests {
     #[test]
     fn test_add_single_attribute() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "main", None).unwrap();
+        attrs.add("div", "id", "main", None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "id"), "main");
@@ -140,8 +132,8 @@ mod tests {
     #[test]
     fn test_add_multiple_different_attributes() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "main", None).unwrap();
-        attrs.add("div", "data-value", "test", None).unwrap();
+        attrs.add("div", "id", "main", None);
+        attrs.add("div", "data-value", "test", None);
 
         assert_eq!(attrs.attributes.len(), 2);
         assert_eq!(get_value(&attrs, "id"), "main");
@@ -151,8 +143,8 @@ mod tests {
     #[test]
     fn test_add_non_class_attribute_overwrites() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "first", None).unwrap();
-        attrs.add("div", "id", "second", None).unwrap();
+        attrs.add("div", "id", "first", None);
+        attrs.add("div", "id", "second", None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "id"), "second");
@@ -161,8 +153,8 @@ mod tests {
     #[test]
     fn test_add_class_attribute_merges() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "class", "foo", None).unwrap();
-        attrs.add("div", "class", "bar", None).unwrap();
+        attrs.add("div", "class", "foo", None);
+        attrs.add("div", "class", "bar", None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "class"), "foo bar");
@@ -171,9 +163,9 @@ mod tests {
     #[test]
     fn test_add_class_attribute_merges_multiple() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "class", "a", None).unwrap();
-        attrs.add("div", "class", "b", None).unwrap();
-        attrs.add("div", "class", "c", None).unwrap();
+        attrs.add("div", "class", "a", None);
+        attrs.add("div", "class", "b", None);
+        attrs.add("div", "class", "c", None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "class"), "a b c");
@@ -182,7 +174,7 @@ mod tests {
     #[test]
     fn test_add_escapes_html_in_attribute_value() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "data-value", "<script>", None).unwrap();
+        attrs.add("div", "data-value", "<script>", None);
 
         assert_eq!(get_value(&attrs, "data-value"), "&lt;script&gt;");
     }
@@ -190,7 +182,7 @@ mod tests {
     #[test]
     fn test_add_escapes_quotes_in_attribute_value() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "data-value", "a\"b", None).unwrap();
+        attrs.add("div", "data-value", "a\"b", None);
 
         assert_eq!(get_value(&attrs, "data-value"), "a&quot;b");
     }
@@ -198,7 +190,7 @@ mod tests {
     #[test]
     fn test_add_optional_with_some_value() {
         let mut attrs = Attributes::new();
-        attrs.add_optional("div", "id", Some("main"), None).unwrap();
+        attrs.add_optional("div", "id", Some("main"), None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "id"), "main");
@@ -207,7 +199,7 @@ mod tests {
     #[test]
     fn test_add_optional_with_none_value() {
         let mut attrs = Attributes::new();
-        attrs.add_optional("div", "id", None::<&str>, None).unwrap();
+        attrs.add_optional("div", "id", None::<&str>, None);
 
         assert!(attrs.attributes.is_empty());
     }
@@ -215,12 +207,8 @@ mod tests {
     #[test]
     fn test_add_optional_class_merges() {
         let mut attrs = Attributes::new();
-        attrs
-            .add_optional("div", "class", Some("foo"), None)
-            .unwrap();
-        attrs
-            .add_optional("div", "class", Some("bar"), None)
-            .unwrap();
+        attrs.add_optional("div", "class", Some("foo"), None);
+        attrs.add_optional("div", "class", Some("bar"), None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "class"), "foo bar");
@@ -229,7 +217,7 @@ mod tests {
     #[test]
     fn test_add_boolean_true() {
         let mut attrs = Attributes::new();
-        attrs.add_boolean("disabled", true).unwrap();
+        attrs.add_boolean("disabled", true);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert!(attrs.attributes.get("disabled").unwrap().is_none());
@@ -238,7 +226,7 @@ mod tests {
     #[test]
     fn test_add_boolean_false() {
         let mut attrs = Attributes::new();
-        attrs.add_boolean("disabled", false).unwrap();
+        attrs.add_boolean("disabled", false);
 
         assert!(attrs.attributes.is_empty());
     }
@@ -246,9 +234,9 @@ mod tests {
     #[test]
     fn test_add_boolean_multiple() {
         let mut attrs = Attributes::new();
-        attrs.add_boolean("disabled", true).unwrap();
-        attrs.add_boolean("checked", true).unwrap();
-        attrs.add_boolean("readonly", false).unwrap();
+        attrs.add_boolean("disabled", true);
+        attrs.add_boolean("checked", true);
+        attrs.add_boolean("readonly", false);
 
         assert_eq!(attrs.attributes.len(), 2);
         assert!(attrs.attributes.get("disabled").is_some());
@@ -259,16 +247,12 @@ mod tests {
     #[test]
     fn test_mixed_attributes() {
         let mut attrs = Attributes::new();
-        attrs.add("input", "type", "checkbox", None).unwrap();
-        attrs.add("input", "class", "form-check", None).unwrap();
-        attrs.add("input", "class", "mt-2", None).unwrap();
-        attrs.add_boolean("checked", true).unwrap();
-        attrs
-            .add_optional("input", "id", Some("my-checkbox"), None)
-            .unwrap();
-        attrs
-            .add_optional("input", "name", None::<&str>, None)
-            .unwrap();
+        attrs.add("input", "type", "checkbox", None);
+        attrs.add("input", "class", "form-check", None);
+        attrs.add("input", "class", "mt-2", None);
+        attrs.add_boolean("checked", true);
+        attrs.add_optional("input", "id", Some("my-checkbox"), None);
+        attrs.add_optional("input", "name", None::<&str>, None);
 
         assert_eq!(attrs.attributes.len(), 4); // type, class, checked, id
         assert_eq!(get_value(&attrs, "type"), "checkbox");
@@ -281,8 +265,8 @@ mod tests {
     #[test]
     fn test_numeric_attribute_values() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "data-count", 42i32, None).unwrap();
-        attrs.add("div", "data-price", 19.99f64, None).unwrap();
+        attrs.add("div", "data-count", 42i32, None);
+        attrs.add("div", "data-price", 19.99f64, None);
 
         assert_eq!(get_value(&attrs, "data-count"), "42");
         assert_eq!(get_value(&attrs, "data-price"), "19.99");
@@ -292,7 +276,7 @@ mod tests {
 
     /// Helper to render attributes to string
     fn render_attrs(attrs: &Attributes) -> String {
-        attrs.render(EscapeMode::Html).unwrap().0
+        attrs.render(EscapeMode::Html).0
     }
 
     #[test]
@@ -304,7 +288,7 @@ mod tests {
     #[test]
     fn test_render_single_valued_attribute() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "main", None).unwrap();
+        attrs.add("div", "id", "main", None);
 
         assert_eq!(render_attrs(&attrs), " id=\"main\"");
     }
@@ -312,7 +296,7 @@ mod tests {
     #[test]
     fn test_render_single_boolean_attribute() {
         let mut attrs = Attributes::new();
-        attrs.add_boolean("disabled", true).unwrap();
+        attrs.add_boolean("disabled", true);
 
         assert_eq!(render_attrs(&attrs), " disabled");
     }
@@ -320,7 +304,7 @@ mod tests {
     #[test]
     fn test_render_preserves_escaped_values() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "data-value", "<script>", None).unwrap();
+        attrs.add("div", "data-value", "<script>", None);
 
         // Values are escaped when added, render should not double-escape
         assert_eq!(render_attrs(&attrs), " data-value=\"&lt;script&gt;\"");
@@ -329,9 +313,9 @@ mod tests {
     #[test]
     fn test_render_multiple_attributes_contains_all() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "main", None).unwrap();
-        attrs.add("div", "class", "container", None).unwrap();
-        attrs.add_boolean("hidden", true).unwrap();
+        attrs.add("div", "id", "main", None);
+        attrs.add("div", "class", "container", None);
+        attrs.add_boolean("hidden", true);
 
         let rendered = render_attrs(&attrs);
 
@@ -344,8 +328,8 @@ mod tests {
     #[test]
     fn test_render_merged_class_attribute() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "class", "foo", None).unwrap();
-        attrs.add("div", "class", "bar", None).unwrap();
+        attrs.add("div", "class", "foo", None);
+        attrs.add("div", "class", "bar", None);
 
         assert_eq!(render_attrs(&attrs), " class=\"foo bar\"");
     }

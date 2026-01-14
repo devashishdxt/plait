@@ -68,8 +68,7 @@ impl<'a> HtmlFormatter<'a> {
                 .last()
                 .unwrap()
                 .attributes
-                .render_to(&mut self.output, EscapeMode::Raw)
-                .unwrap();
+                .render_to(self.output, EscapeMode::Raw);
 
             self.output.0.push('>');
             self.state = FormatterState::InContent;
@@ -117,7 +116,7 @@ impl<'a> HtmlFormatter<'a> {
         let element = self.element_stack.last_mut().unwrap();
         element
             .attributes
-            .add(element.name, name, value, escape_mode)?;
+            .add(element.name, name, value, escape_mode);
 
         Ok(())
     }
@@ -139,7 +138,7 @@ impl<'a> HtmlFormatter<'a> {
         let element = self.element_stack.last_mut().unwrap();
         element
             .attributes
-            .add_optional(element.name, name, value, escape_mode)?;
+            .add_optional(element.name, name, value, escape_mode);
 
         Ok(())
     }
@@ -158,7 +157,7 @@ impl<'a> HtmlFormatter<'a> {
         }
 
         let element = self.element_stack.last_mut().unwrap();
-        element.attributes.add_boolean(name, value)?;
+        element.attributes.add_boolean(name, value);
 
         Ok(())
     }
@@ -174,10 +173,11 @@ impl<'a> HtmlFormatter<'a> {
         // void element.
 
         // Check if we're trying to write content to a void element
-        if let Some(entry) = self.element_stack.last() {
-            if entry.is_void && self.state == FormatterState::TagOpened {
-                return Err(Error::ContentInVoidElement);
-            }
+        if let Some(entry) = self.element_stack.last()
+            && entry.is_void
+            && self.state == FormatterState::TagOpened
+        {
+            return Err(Error::ContentInVoidElement);
         }
 
         // Close pending tag if needed
@@ -187,7 +187,7 @@ impl<'a> HtmlFormatter<'a> {
         let element_name = self.element_stack.last().map(|e| e.name);
         let resolved_escape_mode = resolve_escape_mode_for_element(element_name, escape_mode);
 
-        content.render_to(&mut self.output, resolved_escape_mode)?;
+        content.render_to(self.output, resolved_escape_mode);
 
         Ok(())
     }
@@ -200,10 +200,7 @@ impl<'a> HtmlFormatter<'a> {
         let entry = self.element_stack.pop().ok_or(Error::NoElementToClose)?;
 
         if self.state == FormatterState::TagOpened {
-            entry
-                .attributes
-                .render_to(&mut self.output, EscapeMode::Raw)
-                .unwrap();
+            entry.attributes.render_to(self.output, EscapeMode::Raw);
 
             self.output.0.push('>');
         }

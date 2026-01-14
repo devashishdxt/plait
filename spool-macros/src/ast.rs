@@ -1,3 +1,4 @@
+mod attribute;
 mod escape;
 mod expression;
 
