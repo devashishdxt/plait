@@ -117,6 +117,11 @@ fn parse_attribute_name(input: ParseStream<'_>) -> syn::Result<AttributeName> {
             name.push_str(&ident.to_string());
             last_span = Some(ident.span());
         } else if input.peek(Dot) {
+            if input.peek2(Dot) {
+                // Start of a spread pattern
+                break;
+            }
+
             let _: Dot = input.parse()?;
             name.push('.');
 

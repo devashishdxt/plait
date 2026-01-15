@@ -15,3 +15,5 @@ pub use self::{
     pre_escaped::{DOCTYPE, PreEscaped},
     render::Render,
 };
+
+pub use spool_macros::attrs;

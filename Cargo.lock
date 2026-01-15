@@ -61,6 +61,7 @@ dependencies = [
  "indexmap",
  "itoa",
  "ryu",
+ "spool-macros",
  "thiserror",
 ]
 
@@ -71,6 +72,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "spool-tests"
+version = "0.1.0"
+dependencies = [
+ "spool",
 ]
 
 [[package]]

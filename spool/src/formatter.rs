@@ -114,9 +114,7 @@ impl<'a> HtmlFormatter<'a> {
         }
 
         let element = self.element_stack.last_mut().unwrap();
-        element
-            .attributes
-            .add(element.name, name, value, escape_mode);
+        element.attributes.add(name, value, escape_mode);
 
         Ok(())
     }
@@ -136,9 +134,7 @@ impl<'a> HtmlFormatter<'a> {
         }
 
         let element = self.element_stack.last_mut().unwrap();
-        element
-            .attributes
-            .add_optional(element.name, name, value, escape_mode);
+        element.attributes.add_optional(name, value, escape_mode);
 
         Ok(())
     }
@@ -158,6 +154,20 @@ impl<'a> HtmlFormatter<'a> {
 
         let element = self.element_stack.last_mut().unwrap();
         element.attributes.add_boolean(name, value);
+
+        Ok(())
+    }
+
+    /// Spreads attributes to the current element.
+    pub fn spread_attributes(&mut self, attributes: Attributes) -> Result<(), Error> {
+        // Spread attributes are a way to apply multiple attributes to an element at once.
+
+        if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
+            return Err(Error::AttributeOutsideTag);
+        }
+
+        let element = self.element_stack.last_mut().unwrap();
+        element.attributes.merge(attributes);
 
         Ok(())
     }
@@ -462,5 +472,164 @@ mod tests {
         fmt.end_element().unwrap();
 
         assert_eq!(output, "<div data-value=\"a&quot;b&lt;c&gt;d\"></div>");
+    }
+
+    #[test]
+    fn test_spread_attributes_basic() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let mut attrs = Attributes::new();
+        attrs.add("id", "main", None);
+        attrs.add("class", "container", None);
+
+        fmt.start_element("div");
+        fmt.spread_attributes(attrs).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div id=\"main\" class=\"container\"></div>");
+    }
+
+    #[test]
+    fn test_spread_attributes_empty() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let attrs = Attributes::new();
+
+        fmt.start_element("div");
+        fmt.spread_attributes(attrs).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div></div>");
+    }
+
+    #[test]
+    fn test_spread_attributes_with_existing_attributes() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let mut attrs = Attributes::new();
+        attrs.add("data-value", "spread", None);
+
+        fmt.start_element("div");
+        fmt.write_attribute("id", "main", None).unwrap();
+        fmt.spread_attributes(attrs).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div id=\"main\" data-value=\"spread\"></div>");
+    }
+
+    #[test]
+    fn test_spread_attributes_class_merging() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let mut attrs = Attributes::new();
+        attrs.add("class", "spread-class", None);
+
+        fmt.start_element("div");
+        fmt.write_attribute("class", "existing-class", None)
+            .unwrap();
+        fmt.spread_attributes(attrs).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div class=\"existing-class spread-class\"></div>");
+    }
+
+    #[test]
+    fn test_spread_attributes_with_boolean() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let mut attrs = Attributes::new();
+        attrs.add("type", "checkbox", None);
+        attrs.add_boolean("checked", true);
+
+        fmt.start_element("input");
+        fmt.spread_attributes(attrs).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<input type=\"checkbox\" checked>");
+    }
+
+    #[test]
+    fn test_spread_attributes_overwrites_non_class() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let mut attrs = Attributes::new();
+        attrs.add("id", "spread-id", None);
+
+        fmt.start_element("div");
+        fmt.write_attribute("id", "original-id", None).unwrap();
+        fmt.spread_attributes(attrs).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div id=\"spread-id\"></div>");
+    }
+
+    #[test]
+    fn test_spread_attributes_outside_tag_error_in_content() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let attrs = Attributes::new();
+
+        fmt.start_element("div");
+        fmt.write_content("Content", None).unwrap();
+
+        // Now in InContent state, spread should fail
+        let result = fmt.spread_attributes(attrs);
+        assert!(matches!(result, Err(Error::AttributeOutsideTag)));
+    }
+
+    #[test]
+    fn test_spread_attributes_outside_tag_error_idle() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let attrs = Attributes::new();
+
+        // In Idle state (no element started), spread should fail
+        let result = fmt.spread_attributes(attrs);
+        assert!(matches!(result, Err(Error::AttributeOutsideTag)));
+    }
+
+    #[test]
+    fn test_spread_attributes_multiple_spreads() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let mut attrs1 = Attributes::new();
+        attrs1.add("id", "main", None);
+
+        let mut attrs2 = Attributes::new();
+        attrs2.add("data-value", "test", None);
+
+        fmt.start_element("div");
+        fmt.spread_attributes(attrs1).unwrap();
+        fmt.spread_attributes(attrs2).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(output, "<div id=\"main\" data-value=\"test\"></div>");
+    }
+
+    #[test]
+    fn test_spread_attributes_with_escaped_values() {
+        let mut output = Html::new();
+        let mut fmt = HtmlFormatter::new(&mut output);
+
+        let mut attrs = Attributes::new();
+        attrs.add("data-value", "<script>alert('xss')</script>", None);
+
+        fmt.start_element("div");
+        fmt.spread_attributes(attrs).unwrap();
+        fmt.end_element().unwrap();
+
+        assert_eq!(
+            output,
+            "<div data-value=\"&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;\"></div>"
+        );
     }
 }

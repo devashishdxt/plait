@@ -1,5 +1,5 @@
 [workspace]
-members = ["spool", "spool-macros"]
+members = ["spool", "spool-macros", "spool-tests"]
 resolver = "3"
 
 [workspace.dependencies]
@@ -8,5 +8,7 @@ itoa = "1.0.17"
 proc-macro2 = "1.0.105"
 quote = "1.0.43"
 ryu = "1.0.22"
+spool = { path = "./spool" }
+spool-macros = { path = "./spool-macros" }
 syn = { version = "2.0.114", features = ["full", "extra-traits"] }
 thiserror = "2.0.17"

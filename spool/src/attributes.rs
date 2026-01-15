@@ -16,15 +16,16 @@ impl Attributes {
         }
     }
 
+    /// Creates a new instance of `Attributes` with a specified capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Attributes {
+            attributes: IndexMap::with_capacity(capacity),
+        }
+    }
+
     /// Adds an attribute to the collection.
-    pub fn add(
-        &mut self,
-        parent: &'static str,
-        name: &'static str,
-        value: impl Render,
-        escape_mode: Option<EscapeMode>,
-    ) {
-        let resolved_escape_mode = resolve_escape_mode_for_attribute(parent, name, escape_mode);
+    pub fn add(&mut self, name: &'static str, value: impl Render, escape_mode: Option<EscapeMode>) {
+        let resolved_escape_mode = resolve_escape_mode_for_attribute(name, escape_mode);
 
         if name == "class" {
             let existing = self.attributes.get_mut(name);
@@ -45,13 +46,12 @@ impl Attributes {
     /// Adds an optional attribute to the collection.
     pub fn add_optional(
         &mut self,
-        parent: &'static str,
         name: &'static str,
         value: Option<impl Render>,
         escape_mode: Option<EscapeMode>,
     ) {
         if let Some(value) = value {
-            self.add(parent, name, value, escape_mode);
+            self.add(name, value, escape_mode);
         }
     }
 
@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn test_add_single_attribute() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "main", None);
+        attrs.add("id", "main", None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "id"), "main");
@@ -132,8 +132,8 @@ mod tests {
     #[test]
     fn test_add_multiple_different_attributes() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "main", None);
-        attrs.add("div", "data-value", "test", None);
+        attrs.add("id", "main", None);
+        attrs.add("data-value", "test", None);
 
         assert_eq!(attrs.attributes.len(), 2);
         assert_eq!(get_value(&attrs, "id"), "main");
@@ -143,8 +143,8 @@ mod tests {
     #[test]
     fn test_add_non_class_attribute_overwrites() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "first", None);
-        attrs.add("div", "id", "second", None);
+        attrs.add("id", "first", None);
+        attrs.add("id", "second", None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "id"), "second");
@@ -153,8 +153,8 @@ mod tests {
     #[test]
     fn test_add_class_attribute_merges() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "class", "foo", None);
-        attrs.add("div", "class", "bar", None);
+        attrs.add("class", "foo", None);
+        attrs.add("class", "bar", None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "class"), "foo bar");
@@ -163,9 +163,9 @@ mod tests {
     #[test]
     fn test_add_class_attribute_merges_multiple() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "class", "a", None);
-        attrs.add("div", "class", "b", None);
-        attrs.add("div", "class", "c", None);
+        attrs.add("class", "a", None);
+        attrs.add("class", "b", None);
+        attrs.add("class", "c", None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "class"), "a b c");
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn test_add_escapes_html_in_attribute_value() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "data-value", "<script>", None);
+        attrs.add("data-value", "<script>", None);
 
         assert_eq!(get_value(&attrs, "data-value"), "&lt;script&gt;");
     }
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn test_add_escapes_quotes_in_attribute_value() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "data-value", "a\"b", None);
+        attrs.add("data-value", "a\"b", None);
 
         assert_eq!(get_value(&attrs, "data-value"), "a&quot;b");
     }
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_add_optional_with_some_value() {
         let mut attrs = Attributes::new();
-        attrs.add_optional("div", "id", Some("main"), None);
+        attrs.add_optional("id", Some("main"), None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "id"), "main");
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn test_add_optional_with_none_value() {
         let mut attrs = Attributes::new();
-        attrs.add_optional("div", "id", None::<&str>, None);
+        attrs.add_optional("id", None::<&str>, None);
 
         assert!(attrs.attributes.is_empty());
     }
@@ -207,8 +207,8 @@ mod tests {
     #[test]
     fn test_add_optional_class_merges() {
         let mut attrs = Attributes::new();
-        attrs.add_optional("div", "class", Some("foo"), None);
-        attrs.add_optional("div", "class", Some("bar"), None);
+        attrs.add_optional("class", Some("foo"), None);
+        attrs.add_optional("class", Some("bar"), None);
 
         assert_eq!(attrs.attributes.len(), 1);
         assert_eq!(get_value(&attrs, "class"), "foo bar");
@@ -247,12 +247,12 @@ mod tests {
     #[test]
     fn test_mixed_attributes() {
         let mut attrs = Attributes::new();
-        attrs.add("input", "type", "checkbox", None);
-        attrs.add("input", "class", "form-check", None);
-        attrs.add("input", "class", "mt-2", None);
+        attrs.add("type", "checkbox", None);
+        attrs.add("class", "form-check", None);
+        attrs.add("class", "mt-2", None);
         attrs.add_boolean("checked", true);
-        attrs.add_optional("input", "id", Some("my-checkbox"), None);
-        attrs.add_optional("input", "name", None::<&str>, None);
+        attrs.add_optional("id", Some("my-checkbox"), None);
+        attrs.add_optional("name", None::<&str>, None);
 
         assert_eq!(attrs.attributes.len(), 4); // type, class, checked, id
         assert_eq!(get_value(&attrs, "type"), "checkbox");
@@ -265,8 +265,8 @@ mod tests {
     #[test]
     fn test_numeric_attribute_values() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "data-count", 42i32, None);
-        attrs.add("div", "data-price", 19.99f64, None);
+        attrs.add("data-count", 42i32, None);
+        attrs.add("data-price", 19.99f64, None);
 
         assert_eq!(get_value(&attrs, "data-count"), "42");
         assert_eq!(get_value(&attrs, "data-price"), "19.99");
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn test_render_single_valued_attribute() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "main", None);
+        attrs.add("id", "main", None);
 
         assert_eq!(render_attrs(&attrs), " id=\"main\"");
     }
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn test_render_preserves_escaped_values() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "data-value", "<script>", None);
+        attrs.add("data-value", "<script>", None);
 
         // Values are escaped when added, render should not double-escape
         assert_eq!(render_attrs(&attrs), " data-value=\"&lt;script&gt;\"");
@@ -313,8 +313,8 @@ mod tests {
     #[test]
     fn test_render_multiple_attributes_contains_all() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "id", "main", None);
-        attrs.add("div", "class", "container", None);
+        attrs.add("id", "main", None);
+        attrs.add("class", "container", None);
         attrs.add_boolean("hidden", true);
 
         let rendered = render_attrs(&attrs);
@@ -328,8 +328,8 @@ mod tests {
     #[test]
     fn test_render_merged_class_attribute() {
         let mut attrs = Attributes::new();
-        attrs.add("div", "class", "foo", None);
-        attrs.add("div", "class", "bar", None);
+        attrs.add("class", "foo", None);
+        attrs.add("class", "bar", None);
 
         assert_eq!(render_attrs(&attrs), " class=\"foo bar\"");
     }

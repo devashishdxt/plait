@@ -8,4 +8,5 @@ edition = "2024"
 indexmap.workspace = true
 itoa.workspace = true
 ryu.workspace = true
+spool-macros.workspace = true
 thiserror.workspace = true
