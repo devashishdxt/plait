@@ -3,6 +3,7 @@ members = ["spool", "spool-macros", "spool-tests"]
 resolver = "3"
 
 [workspace.dependencies]
+hescape = "0.1.0"
 indexmap = "2.13.0"
 itoa = "1.0.17"
 proc-macro2 = "1.0.105"
@@ -12,3 +13,4 @@ spool = { path = "./spool" }
 spool-macros = { path = "./spool-macros" }
 syn = { version = "2.0.114", features = ["full", "extra-traits"] }
 thiserror = "2.0.17"
+urlencoding = "2.1.3"

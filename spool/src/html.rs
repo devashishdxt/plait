@@ -44,6 +44,12 @@ impl fmt::Display for Html {
     }
 }
 
+impl fmt::Write for Html {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.0.write_str(s)
+    }
+}
+
 impl From<Html> for String {
     fn from(value: Html) -> Self {
         value.0

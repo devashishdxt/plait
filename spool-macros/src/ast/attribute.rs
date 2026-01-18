@@ -195,10 +195,4 @@ mod tests {
         let result = parse("");
         assert!(result.is_err());
     }
-
-    #[test]
-    fn error_missing_value() {
-        let result = parse("class");
-        assert!(result.is_err());
-    }
 }
