@@ -1,9 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    LitStr,
-    parse::{Parse, ParseStream},
-};
+use syn::parse::{Parse, ParseStream};
 
 use crate::ast::{Attribute, AttributeValue, EscapeMode};
 
@@ -36,7 +33,7 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
     for attribute in attrs_input.attributes {
         match attribute {
             Attribute::NameValue { name, value } => {
-                let name = LitStr::new(&name.name, name.span);
+                let name = name.name;
 
                 match value {
                     Some(AttributeValue::Literal { value }) => add_calls.push(quote! {

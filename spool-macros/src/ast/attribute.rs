@@ -71,7 +71,7 @@ mod tests {
         let result = parse(r#"class="container""#).unwrap();
         match result {
             Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name, "class");
+                assert_eq!(name.name.value(), "class");
                 assert!(matches!(value, Some(AttributeValue::Literal { .. })));
             }
             _ => panic!("expected NameValue"),
@@ -83,7 +83,7 @@ mod tests {
         let result = parse("href=(url)").unwrap();
         match result {
             Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name, "href");
+                assert_eq!(name.name.value(), "href");
                 assert!(matches!(value, Some(AttributeValue::Dynamic { .. })));
             }
             _ => panic!("expected NameValue"),
@@ -95,7 +95,7 @@ mod tests {
         let result = parse("alt=[maybe_alt]").unwrap();
         match result {
             Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name, "alt");
+                assert_eq!(name.name.value(), "alt");
                 assert!(matches!(value, Some(AttributeValue::Optional { .. })));
             }
             _ => panic!("expected NameValue"),
@@ -107,7 +107,7 @@ mod tests {
         let result = parse("checked?[is_checked]").unwrap();
         match result {
             Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name, "checked");
+                assert_eq!(name.name.value(), "checked");
                 assert!(matches!(value, Some(AttributeValue::Boolean { .. })));
             }
             _ => panic!("expected NameValue"),
@@ -119,7 +119,7 @@ mod tests {
         let result = parse(r#"hx-on:click="handler""#).unwrap();
         match result {
             Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name, "hx-on:click");
+                assert_eq!(name.name.value(), "hx-on:click");
                 assert!(matches!(value, Some(AttributeValue::Literal { .. })));
             }
             _ => panic!("expected NameValue"),
@@ -131,7 +131,7 @@ mod tests {
         let result = parse("@click=(handle_click)").unwrap();
         match result {
             Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name, "@click");
+                assert_eq!(name.name.value(), "@click");
                 assert!(matches!(value, Some(AttributeValue::Dynamic { .. })));
             }
             _ => panic!("expected NameValue"),

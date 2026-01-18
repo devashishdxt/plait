@@ -3,7 +3,7 @@ mod escape;
 mod expression;
 
 pub use self::{
-    attribute::{Attribute, AttributeName, AttributeValue},
+    attribute::{Attribute, AttributeValue},
     escape::EscapeMode,
     expression::{BracketedExpression, ParenthesizedExpression},
 };

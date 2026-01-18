@@ -1,16 +1,15 @@
 use proc_macro2::Span;
 use syn::{
-    Ident,
+    Ident, LitStr,
     ext::IdentExt,
     parse::{Parse, ParseStream},
-    token::{At, Dot, Minus},
+    token::{At, Colon, Dollar, Dot, Minus, Pound},
 };
 
 /// The name of an HTML attribute.
 #[derive(Debug, Clone)]
 pub struct AttributeName {
-    pub name: String,
-    pub span: Span,
+    pub name: LitStr,
 }
 
 impl Parse for AttributeName {
@@ -42,16 +41,14 @@ impl Parse for AttributeName {
 /// - `123` (starts with number)
 /// - `a&b` (disallowed punctuation)
 fn parse_attribute_name(input: ParseStream<'_>) -> syn::Result<AttributeName> {
-    use syn::token::{Colon, Dollar, Pound};
-
-    let mut name = String::new();
-    let mut first_span: Option<Span> = None;
-    let mut last_span: Option<Span>;
-
     // Must have at least one token
     if input.is_empty() {
         return Err(input.error("expected attribute name"));
     }
+
+    let mut name = String::new();
+    let mut first_span: Option<Span> = None;
+    let mut last_span: Option<Span>;
 
     // Parse optional prefix: @, $, :, #
     if input.peek(At) {
@@ -140,7 +137,9 @@ fn parse_attribute_name(input: ParseStream<'_>) -> syn::Result<AttributeName> {
     let last = last_span.unwrap();
     let span = first.join(last).unwrap_or(first);
 
-    Ok(AttributeName { name, span })
+    Ok(AttributeName {
+        name: LitStr::new(&name, span),
+    })
 }
 
 #[cfg(test)]
@@ -174,73 +173,76 @@ mod tests {
 
     #[test]
     fn simple_identifier() {
-        assert_eq!(parse("class").unwrap().name, "class");
-        assert_eq!(parse("href").unwrap().name, "href");
-        assert_eq!(parse("id").unwrap().name, "id");
-        assert_eq!(parse("_private").unwrap().name, "_private");
+        assert_eq!(parse("class").unwrap().name.value(), "class");
+        assert_eq!(parse("href").unwrap().name.value(), "href");
+        assert_eq!(parse("id").unwrap().name.value(), "id");
+        assert_eq!(parse("_private").unwrap().name.value(), "_private");
     }
 
     #[test]
     fn with_hyphens() {
-        assert_eq!(parse("data-value").unwrap().name, "data-value");
-        assert_eq!(parse("hx-get").unwrap().name, "hx-get");
-        assert_eq!(parse("x-data").unwrap().name, "x-data");
-        assert_eq!(parse("aria-label").unwrap().name, "aria-label");
+        assert_eq!(parse("data-value").unwrap().name.value(), "data-value");
+        assert_eq!(parse("hx-get").unwrap().name.value(), "hx-get");
+        assert_eq!(parse("x-data").unwrap().name.value(), "x-data");
+        assert_eq!(parse("aria-label").unwrap().name.value(), "aria-label");
     }
 
     #[test]
     fn with_colons() {
-        assert_eq!(parse("hx-on:click").unwrap().name, "hx-on:click");
-        assert_eq!(parse("xml:lang").unwrap().name, "xml:lang");
-        assert_eq!(parse("xlink:href").unwrap().name, "xlink:href");
+        assert_eq!(parse("hx-on:click").unwrap().name.value(), "hx-on:click");
+        assert_eq!(parse("xml:lang").unwrap().name.value(), "xml:lang");
+        assert_eq!(parse("xlink:href").unwrap().name.value(), "xlink:href");
     }
 
     #[test]
     fn with_dots() {
-        assert_eq!(parse("x.data").unwrap().name, "x.data");
-        assert_eq!(parse("v.model").unwrap().name, "v.model");
+        assert_eq!(parse("x.data").unwrap().name.value(), "x.data");
+        assert_eq!(parse("v.model").unwrap().name.value(), "v.model");
     }
 
     #[test]
     fn at_prefixed() {
-        assert_eq!(parse("@click").unwrap().name, "@click");
-        assert_eq!(parse("@submit").unwrap().name, "@submit");
-        assert_eq!(parse("@input").unwrap().name, "@input");
+        assert_eq!(parse("@click").unwrap().name.value(), "@click");
+        assert_eq!(parse("@submit").unwrap().name.value(), "@submit");
+        assert_eq!(parse("@input").unwrap().name.value(), "@input");
     }
 
     #[test]
     fn dollar_prefixed() {
-        assert_eq!(parse("$var").unwrap().name, "$var");
-        assert_eq!(parse("$data").unwrap().name, "$data");
+        assert_eq!(parse("$var").unwrap().name.value(), "$var");
+        assert_eq!(parse("$data").unwrap().name.value(), "$data");
     }
 
     #[test]
     fn colon_prefixed() {
         // Vue shorthand for v-bind
-        assert_eq!(parse(":class").unwrap().name, ":class");
-        assert_eq!(parse(":style").unwrap().name, ":style");
+        assert_eq!(parse(":class").unwrap().name.value(), ":class");
+        assert_eq!(parse(":style").unwrap().name.value(), ":style");
     }
 
     #[test]
     fn pound_prefixed() {
-        assert_eq!(parse("#ref").unwrap().name, "#ref");
-        assert_eq!(parse("#anchor").unwrap().name, "#anchor");
+        assert_eq!(parse("#ref").unwrap().name.value(), "#ref");
+        assert_eq!(parse("#anchor").unwrap().name.value(), "#anchor");
     }
 
     #[test]
     fn complex_combinations() {
-        assert_eq!(parse("@click.shift").unwrap().name, "@click.shift");
-        assert_eq!(parse("@keyup.page-down").unwrap().name, "@keyup.page-down");
+        assert_eq!(parse("@click.shift").unwrap().name.value(), "@click.shift");
         assert_eq!(
-            parse("x-on:click.prevent").unwrap().name,
+            parse("@keyup.page-down").unwrap().name.value(),
+            "@keyup.page-down"
+        );
+        assert_eq!(
+            parse("x-on:click.prevent").unwrap().name.value(),
             "x-on:click.prevent"
         );
         assert_eq!(
-            parse("hx-on:htmx:after-request").unwrap().name,
+            parse("hx-on:htmx:after-request").unwrap().name.value(),
             "hx-on:htmx:after-request"
         );
         assert_eq!(
-            parse("@click.stop.prevent").unwrap().name,
+            parse("@click.stop.prevent").unwrap().name.value(),
             "@click.stop.prevent"
         );
     }
@@ -390,21 +392,21 @@ mod tests {
     #[test]
     fn stops_at_equals() {
         let (attr, remaining) = parse_partial("data=value").unwrap();
-        assert_eq!(attr.name, "data");
+        assert_eq!(attr.name.value(), "data");
         assert!(remaining.starts_with("="), "remaining was: {}", remaining);
     }
 
     #[test]
     fn stops_at_greater_than() {
         let (attr, remaining) = parse_partial("class>").unwrap();
-        assert_eq!(attr.name, "class");
+        assert_eq!(attr.name.value(), "class");
         assert!(remaining.starts_with(">"), "remaining was: {}", remaining);
     }
 
     #[test]
     fn stops_at_slash() {
         let (attr, remaining) = parse_partial("disabled/").unwrap();
-        assert_eq!(attr.name, "disabled");
+        assert_eq!(attr.name.value(), "disabled");
         assert!(remaining.starts_with("/"), "remaining was: {}", remaining);
     }
 
@@ -412,7 +414,7 @@ mod tests {
     fn stops_at_disallowed_punct() {
         // Stops at punctuation that's not -, :, or .
         let (attr, remaining) = parse_partial("data&more").unwrap();
-        assert_eq!(attr.name, "data");
+        assert_eq!(attr.name.value(), "data");
         assert!(remaining.starts_with("&"), "remaining was: {}", remaining);
     }
 
@@ -424,7 +426,7 @@ mod tests {
         // Token stream contains: [Ident(hx), Punct(-), Ident(get)]
         // Parser consumes all three and concatenates them.
         let (attr, remaining) = parse_partial("hx - get").unwrap();
-        assert_eq!(attr.name, "hx-get");
+        assert_eq!(attr.name.value(), "hx-get");
         assert!(remaining.is_empty());
     }
 }
