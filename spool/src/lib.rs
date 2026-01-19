@@ -16,4 +16,4 @@ pub use self::{
     render::Render,
 };
 
-pub use spool_macros::attrs;
+pub use spool_macros::{attrs, html, render};
