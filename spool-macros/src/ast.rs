@@ -4,6 +4,7 @@ mod escape;
 mod expression;
 mod for_loop;
 mod if_condition;
+mod match_expression;
 mod node;
 
 pub use self::{
@@ -13,5 +14,6 @@ pub use self::{
     expression::{BracketedExpression, ParenthesizedExpression},
     for_loop::ForLoop,
     if_condition::{ElseBranch, IfCondition},
+    match_expression::{MatchArm, MatchExpression},
     node::Node,
 };

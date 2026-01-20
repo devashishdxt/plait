@@ -7,7 +7,8 @@ use syn::{
 };
 
 use crate::ast::{
-    Attribute, AttributeValue, Element, ElseBranch, EscapeMode, ForLoop, IfCondition, Node,
+    Attribute, AttributeValue, Element, ElseBranch, EscapeMode, ForLoop, IfCondition, MatchArm,
+    MatchExpression, Node,
 };
 
 struct RenderInput {
@@ -81,6 +82,9 @@ fn push_statements_for_node(statements: &mut Vec<TokenStream>, formatter: &Ident
         }
         Node::For(for_loop) => {
             push_statements_for_for_loop(statements, formatter, for_loop);
+        }
+        Node::Match(match_expr) => {
+            push_statements_for_match_expression(statements, formatter, match_expr);
         }
         Node::Element(element) => {
             push_statements_for_element(statements, formatter, element);
@@ -238,4 +242,51 @@ fn push_statements_for_for_loop(
             #(#body_statements)*
         }
     });
+}
+
+fn push_statements_for_match_expression(
+    statements: &mut Vec<TokenStream>,
+    formatter: &Ident,
+    match_expression: MatchExpression,
+) {
+    let expression = match_expression.expression;
+    let arms = match_expression.arms;
+
+    let mut arm_statements = Vec::with_capacity(arms.len());
+
+    for arm in arms {
+        push_statement_for_match_arm(&mut arm_statements, formatter, arm);
+    }
+
+    statements.push(quote! {
+        match #expression {
+            #(#arm_statements)*
+        }
+    });
+}
+
+fn push_statement_for_match_arm(
+    statements: &mut Vec<TokenStream>,
+    formatter: &Ident,
+    arm: MatchArm,
+) {
+    let pattern = arm.pattern;
+    let guard = arm.guard;
+    let body = arm.body;
+
+    let mut body_statements = Vec::new();
+    push_statements_for_node(&mut body_statements, formatter, body);
+
+    match guard {
+        None => statements.push(quote! {
+            #pattern => {
+                #(#body_statements)*
+            }
+        }),
+        Some(guard) => statements.push(quote! {
+            #pattern if #guard => {
+                #(#body_statements)*
+            }
+        }),
+    }
 }
