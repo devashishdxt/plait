@@ -1,10 +1,10 @@
 use syn::{
     LitStr,
     parse::{Parse, ParseStream},
-    token::{At, Brace, If, Paren},
+    token::{At, Brace, For, If, Paren},
 };
 
-use crate::ast::{Element, IfCondition, ParenthesizedExpression};
+use crate::ast::{Element, ForLoop, IfCondition, ParenthesizedExpression};
 
 #[derive(Debug)]
 pub enum Node {
@@ -12,6 +12,7 @@ pub enum Node {
     Expression(ParenthesizedExpression),
     Fragment(Vec<Node>),
     If(IfCondition),
+    For(ForLoop),
     Element(Element),
 }
 
@@ -33,6 +34,8 @@ fn parse_node(input: ParseStream<'_>) -> syn::Result<Node> {
 
         if input.peek(If) {
             Ok(Node::If(input.parse()?))
+        } else if input.peek(For) {
+            Ok(Node::For(input.parse()?))
         } else {
             Err(input.error("unexpected control flow token"))
         }

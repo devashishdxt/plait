@@ -18,7 +18,7 @@ pub fn attrs() {
 }
 
 pub fn html() {
-    let num = Some(5);
+    let num = Some(5.01);
 
     let html = html! {
         div id="myId" class="my-4" checked ..(attrs!(id="my" class="mx-4")) {
@@ -32,6 +32,11 @@ pub fn html() {
             } @else {
                 div id="myV" class="my-4" hx-get=("<script>") {
                     "Hello, World!"
+                }
+            }
+            @for i in 1..=5 {
+                div class="my-4" hx-get=("<script>") {
+                    (i)
                 }
             }
             br class="my-4";

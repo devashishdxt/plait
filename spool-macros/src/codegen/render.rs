@@ -6,7 +6,9 @@ use syn::{
     token::Comma,
 };
 
-use crate::ast::{Attribute, AttributeValue, Element, ElseBranch, EscapeMode, IfCondition, Node};
+use crate::ast::{
+    Attribute, AttributeValue, Element, ElseBranch, EscapeMode, ForLoop, IfCondition, Node,
+};
 
 struct RenderInput {
     formatter: Ident,
@@ -76,6 +78,9 @@ fn push_statements_for_node(statements: &mut Vec<TokenStream>, formatter: &Ident
         }
         Node::If(if_condition) => {
             push_statements_for_if_condition(statements, formatter, if_condition);
+        }
+        Node::For(for_loop) => {
+            push_statements_for_for_loop(statements, formatter, for_loop);
         }
         Node::Element(element) => {
             push_statements_for_element(statements, formatter, element);
@@ -211,4 +216,26 @@ fn push_statements_for_if_condition(
             });
         }
     }
+}
+
+fn push_statements_for_for_loop(
+    statements: &mut Vec<TokenStream>,
+    formatter: &Ident,
+    for_loop: ForLoop,
+) {
+    let pattern = for_loop.pattern;
+    let expression = for_loop.expression;
+    let body = for_loop.body;
+
+    let mut body_statements = Vec::with_capacity(body.len());
+
+    for child in body {
+        push_statements_for_node(&mut body_statements, formatter, child);
+    }
+
+    statements.push(quote! {
+        for #pattern in #expression {
+            #(#body_statements)*
+        }
+    });
 }
