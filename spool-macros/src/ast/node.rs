@@ -1,17 +1,18 @@
 use syn::{
     LitStr,
     parse::{Parse, ParseStream},
-    token::{Brace, Paren},
+    token::{At, Brace, If, Paren},
 };
 
-use crate::ast::{Element, ParenthesizedExpression};
+use crate::ast::{Element, IfCondition, ParenthesizedExpression};
 
 #[derive(Debug)]
 pub enum Node {
     Text(LitStr),
     Expression(ParenthesizedExpression),
-    Element(Element),
     Fragment(Vec<Node>),
+    If(IfCondition),
+    Element(Element),
 }
 
 impl Parse for Node {
@@ -27,6 +28,14 @@ fn parse_node(input: ParseStream<'_>) -> syn::Result<Node> {
         Ok(Node::Expression(input.parse()?))
     } else if input.peek(Brace) {
         Ok(Node::Fragment(parse_fragment(input)?))
+    } else if input.peek(At) {
+        let _: At = input.parse()?;
+
+        if input.peek(If) {
+            Ok(Node::If(input.parse()?))
+        } else {
+            Err(input.error("unexpected control flow token"))
+        }
     } else {
         Ok(Node::Element(input.parse()?))
     }

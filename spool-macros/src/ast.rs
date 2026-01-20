@@ -2,6 +2,7 @@ mod attribute;
 mod element;
 mod escape;
 mod expression;
+mod if_condition;
 mod node;
 
 pub use self::{
@@ -9,5 +10,6 @@ pub use self::{
     element::Element,
     escape::EscapeMode,
     expression::{BracketedExpression, ParenthesizedExpression},
+    if_condition::{ElseBranch, IfCondition},
     node::Node,
 };

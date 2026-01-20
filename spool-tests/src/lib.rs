@@ -18,10 +18,21 @@ pub fn attrs() {
 }
 
 pub fn html() {
+    let num = Some(5);
+
     let html = html! {
-        div id="myId" class="my-4" checked {
+        div id="myId" class="my-4" checked ..(attrs!(id="my" class="mx-4")) {
             div id="myI" class="my-4" hx-get=("<script>") {
                 "Hello, World!"
+            }
+            @if let Some(n) = num {
+                div id="myII" class="my-4" hx-get=("<script>") {
+                    (n)
+                }
+            } @else {
+                div id="myV" class="my-4" hx-get=("<script>") {
+                    "Hello, World!"
+                }
             }
             br class="my-4";
         }

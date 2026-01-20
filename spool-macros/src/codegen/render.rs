@@ -6,7 +6,7 @@ use syn::{
     token::Comma,
 };
 
-use crate::ast::{Attribute, AttributeValue, Element, EscapeMode, Node};
+use crate::ast::{Attribute, AttributeValue, Element, ElseBranch, EscapeMode, IfCondition, Node};
 
 struct RenderInput {
     formatter: Ident,
@@ -73,6 +73,9 @@ fn push_statements_for_node(statements: &mut Vec<TokenStream>, formatter: &Ident
             for node in nodes {
                 push_statements_for_node(statements, formatter, node);
             }
+        }
+        Node::If(if_condition) => {
+            push_statements_for_if_condition(statements, formatter, if_condition);
         }
         Node::Element(element) => {
             push_statements_for_element(statements, formatter, element);
@@ -157,4 +160,55 @@ fn push_statements_for_element(
     statements.push(quote! {
         #formatter .end_element().unwrap();
     });
+}
+
+fn push_statements_for_if_condition(
+    statements: &mut Vec<TokenStream>,
+    formatter: &Ident,
+    if_condition: IfCondition,
+) {
+    let condition = if_condition.condition;
+    let then_branch = if_condition.then_branch;
+
+    let mut then_statements = Vec::with_capacity(then_branch.len());
+
+    for child in then_branch {
+        push_statements_for_node(&mut then_statements, formatter, child);
+    }
+
+    match if_condition.else_branch {
+        None => statements.push(quote! {
+            if #condition {
+                #(#then_statements)*
+            }
+        }),
+        Some(ElseBranch::Else(nodes)) => {
+            let mut else_statements = Vec::with_capacity(nodes.len());
+
+            for child in nodes {
+                push_statements_for_node(&mut else_statements, formatter, child);
+            }
+
+            statements.push(quote! {
+                if #condition {
+                    #(#then_statements)*
+                } else {
+                    #(#else_statements)*
+                }
+            });
+        }
+        Some(ElseBranch::If(inner_if_condition)) => {
+            let mut else_statements = Vec::new();
+
+            push_statements_for_if_condition(&mut else_statements, formatter, *inner_if_condition);
+
+            statements.push(quote! {
+                if #condition {
+                    #(#then_statements)*
+                } else {
+                    #(#else_statements)*
+                }
+            });
+        }
+    }
 }
