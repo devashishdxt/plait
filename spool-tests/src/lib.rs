@@ -18,7 +18,7 @@ pub fn attrs() {
 }
 
 pub fn html() {
-    let num = Some(5.01);
+    let num = Some(4.9);
     let a = "hello1";
 
     let html = html! {
@@ -43,6 +43,11 @@ pub fn html() {
             @match a {
                 "hello" => "Hello world!",
                 _ => "Goodbye, World!",
+            }
+            @match num {
+                Some(n) if n > 5.0 => "Number is greater than 5",
+                Some(_) => "Number is less than or equal to 5",
+                None => "Number is None",
             }
             br class="my-4";
         }

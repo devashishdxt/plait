@@ -1,6 +1,25 @@
 mod html;
+mod url;
 
-pub use self::html::escape_html;
+pub use self::{html::escape_html, url::escape_url};
+
+fn is_url_attribute(name: &str) -> bool {
+    matches!(
+        name,
+        "href"
+            | "src"
+            | "action"
+            | "formaction"
+            | "poster"
+            | "cite"
+            | "data"
+            | "profile"
+            | "manifest"
+            | "icon"
+            | "background"
+            | "xlink:href"
+    )
+}
 
 /// Specifies how to escape the input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,6 +29,9 @@ pub enum EscapeMode {
 
     /// Escape the input as HTML (for html content and attributes).
     Html,
+
+    /// Escape the input as a URL (for URL attributes).
+    Url,
 }
 
 /// Resolves the escape mode for an element based on element name.
@@ -21,6 +43,12 @@ pub fn resolve_escape_mode_for_element(
 }
 
 /// Resolves the escape mode for an attribute based on attribute name.
-pub fn resolve_escape_mode_for_attribute(_name: &str, provided: Option<EscapeMode>) -> EscapeMode {
-    provided.unwrap_or(EscapeMode::Html) // TODO: filter based on name, for example, `href` should be `Url`
+pub fn resolve_escape_mode_for_attribute(name: &str, provided: Option<EscapeMode>) -> EscapeMode {
+    provided.unwrap_or_else(|| {
+        if is_url_attribute(name) {
+            EscapeMode::Url
+        } else {
+            EscapeMode::Html
+        }
+    })
 }

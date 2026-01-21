@@ -319,7 +319,6 @@ mod tests {
 
         let rendered = render_attrs(&attrs);
 
-        // HashMap order is not guaranteed, so check contains
         assert!(rendered.contains(" id=\"main\""));
         assert!(rendered.contains(" class=\"container\""));
         assert!(rendered.contains(" hidden"));

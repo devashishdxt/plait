@@ -1,4 +1,7 @@
-use crate::{EscapeMode, escape::escape_html};
+use crate::{
+    EscapeMode,
+    escape::{escape_html, escape_url},
+};
 
 use super::{Html, PreEscaped};
 
@@ -20,6 +23,7 @@ impl Render for str {
         match escape_mode {
             EscapeMode::Raw => output.0.push_str(self),
             EscapeMode::Html => escape_html(output, self),
+            EscapeMode::Url => escape_url(output, self),
         }
     }
 }
