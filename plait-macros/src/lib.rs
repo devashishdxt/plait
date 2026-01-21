@@ -2,19 +2,19 @@
 //!
 //! This crate provides three macros for generating HTML:
 //!
-//! - [`html!`] - Creates an [`Html`](plait::Html) value from a template
-//! - [`render!`] - Renders content to an existing [`HtmlFormatter`](plait::HtmlFormatter)
-//! - [`attrs!`] - Creates an [`Attributes`](plait::Attributes) collection
+//! - [`html!`] - Creates an `Html` value from a template
+//! - [`render!`] - Renders content to an existing `HtmlFormatter`
+//! - [`attrs!`] - Creates an `Attributes` collection
 //!
-//! These macros are re-exported by the main `plait` crate and should typically
-//! be used from there rather than directly from this crate.
+//! These macros are re-exported by the main `plait` crate and should typically be used from there rather than
+//! directly from this crate.
 
 mod ast;
 mod codegen;
 
 use proc_macro::TokenStream;
 
-/// Creates an [`Attributes`](plait::Attributes) collection from a declarative syntax.
+/// Creates an `Attributes` collection from a declarative syntax.
 ///
 /// # Syntax
 ///
@@ -46,10 +46,10 @@ pub fn attrs(input: TokenStream) -> TokenStream {
     codegen::attrs_impl(input.into()).into()
 }
 
-/// Creates an [`Html`](plait::Html) value from a declarative template.
+/// Creates an `Html` value from a declarative template.
 ///
-/// This is the primary macro for creating HTML content. It returns an owned
-/// `Html` value containing the rendered template.
+/// This is the primary macro for creating HTML content. It returns an owned `Html` value containing the rendered
+/// template.
 ///
 /// # Syntax
 ///
@@ -68,8 +68,8 @@ pub fn attrs(input: TokenStream) -> TokenStream {
 ///
 /// # Elements
 ///
-/// Elements are written as `name { children }` for normal elements or `name;`
-/// for void elements (like `<br>`, `<input>`).
+/// Elements are written as `name { children }` for normal elements or `name;` for void elements (like `<br>`,
+/// `<input>`).
 ///
 /// # Attributes
 ///
@@ -117,11 +117,10 @@ pub fn html(input: TokenStream) -> TokenStream {
     codegen::html_impl(input.into()).into()
 }
 
-/// Renders content to an existing [`HtmlFormatter`](plait::HtmlFormatter).
+/// Renders content to an existing `HtmlFormatter`.
 ///
-/// Unlike [`html!`], which creates a new `Html` value, `render!` writes directly
-/// to a formatter. This is useful for implementing the rendering of custom types
-/// or for building HTML incrementally.
+/// Unlike [`html!`], which creates a new `Html` value, `render!` writes directly to a formatter. This is useful for
+/// implementing the rendering of custom types or for building HTML incrementally.
 ///
 /// # Syntax
 ///
@@ -137,9 +136,9 @@ pub fn html(input: TokenStream) -> TokenStream {
 /// use plait::{Html, HtmlFormatter, render};
 ///
 /// let mut output = Html::new();
-/// let mut fmt = HtmlFormatter::new(&mut output);
+/// let mut f = HtmlFormatter::new(&mut output);
 ///
-/// render!(fmt, {
+/// render!(f, {
 ///     div { "Hello, world!" }
 /// });
 /// ```

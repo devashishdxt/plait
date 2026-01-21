@@ -7,14 +7,13 @@ pub const DOCTYPE: PreEscaped<'static> = PreEscaped("<!DOCTYPE html>");
 
 /// A borrowed string slice that is known to contain safe, pre-escaped HTML.
 ///
-/// Unlike regular strings which are escaped when rendered, `PreEscaped` content
-/// is included in the output verbatim. This is useful for including HTML that
-/// has already been escaped or for trusted HTML content.
+/// Unlike regular strings which are escaped when rendered, `PreEscaped` content is included in the output verbatim.
+/// This is useful for including HTML that has already been escaped or for trusted HTML content.
 ///
 /// # Safety
 ///
-/// The caller must ensure that the string content is safe HTML. Including
-/// unescaped user input via `PreEscaped` can lead to XSS vulnerabilities.
+/// The caller must ensure that the string content is safe HTML. Including unescaped user input via `PreEscaped` can
+/// lead to XSS vulnerabilities.
 ///
 /// # Example
 ///

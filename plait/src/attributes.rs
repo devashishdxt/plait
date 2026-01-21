@@ -1,25 +1,45 @@
 use indexmap::IndexMap;
 
-use crate::{EscapeMode, Html, Render, escape::resolve_escape_mode_for_attribute};
+use crate::{EscapeMode, Html, HtmlFormatter, Render, escape::resolve_escape_mode_for_attribute};
 
 /// A collection of HTML attributes that can be rendered into an element.
 ///
-/// This struct maintains an ordered collection of attributes and handles special
-/// cases like class merging (multiple `class` attributes are concatenated with spaces).
+/// This struct maintains an ordered collection of attributes and handles special cases like class merging (multiple
+/// `class` attributes are concatenated with spaces).
 ///
 /// # Example
 ///
+/// The recommended way to construct attributes is using the [`attrs!`](crate::attrs) macro:
+///
 /// ```rust
-/// use plait::Attributes;
+/// use plait::{attrs, EscapeMode, Render};
+///
+/// let class_name = "container";
+/// let is_disabled = true;
+///
+/// let attrs = attrs!(
+///     id="main"
+///     class=(class_name)
+///     class="flex"
+///     disabled?[is_disabled]
+/// );
+///
+/// assert_eq!(&*attrs.render(EscapeMode::Raw), r#" id="main" class="container flex" disabled"#);
+/// ```
+///
+/// You can also construct attributes manually:
+///
+/// ```rust
+/// use plait::{Attributes, EscapeMode, Render};
 ///
 /// let mut attrs = Attributes::new();
 /// attrs.add("id", "main", None);
 /// attrs.add("class", "container", None);
 /// attrs.add("class", "flex", None); // Classes are merged
 ///
-/// // Renders as: id="main" class="container flex"
+/// assert_eq!(&*attrs.render(EscapeMode::Raw), r#" id="main" class="container flex""#);
 /// ```
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Attributes {
     attributes: IndexMap<&'static str, Option<Html>>,
 }
@@ -48,7 +68,8 @@ impl Attributes {
 
             if let Some(Some(existing)) = existing {
                 existing.0.push(' ');
-                value.render_to(existing, resolved_escape_mode);
+                let mut f = HtmlFormatter::new(existing);
+                value.render_to(&mut f, resolved_escape_mode);
             } else {
                 self.attributes
                     .insert(name, Some(value.render(resolved_escape_mode)));
@@ -87,7 +108,8 @@ impl Attributes {
 
                     if let Some(Some(existing)) = existing {
                         existing.0.push(' ');
-                        value.render_to(existing, EscapeMode::Raw);
+                        let mut f = HtmlFormatter::new(existing);
+                        value.render_to(&mut f, EscapeMode::Raw);
                     } else {
                         self.attributes.insert(name, Some(value));
                     }
@@ -97,10 +119,11 @@ impl Attributes {
             }
         }
     }
-}
 
-impl Render for Attributes {
-    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
+    /// Writes the attributes directly to an Html output.
+    ///
+    /// This is a low-level method used internally by [`HtmlFormatter`].
+    pub(crate) fn write_to(&self, output: &mut Html) {
         for (name, value) in self.attributes.iter() {
             output.0.push(' ');
             output.0.push_str(name);
@@ -111,6 +134,18 @@ impl Render for Attributes {
                 output.0.push('"');
             }
         }
+    }
+}
+
+impl From<&Attributes> for Attributes {
+    fn from(attributes: &Attributes) -> Self {
+        attributes.clone()
+    }
+}
+
+impl Render for Attributes {
+    fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
+        self.write_to(f.output());
     }
 }
 

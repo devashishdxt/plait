@@ -1,72 +1,45 @@
-use plait::{Render, attrs, html, EscapeMode};
+use plait::{Attributes, EscapeMode, HtmlFormatter, Render, render};
 
-pub fn attrs() {
-    let attrs = attrs!(
-        id = "myId"
-        class = "my-4"
-        checked
-        ..(
-            attrs!(
-                id = "myI"
-                class = "my-4"
-                hx-get = ("<script>")
-            )
-        )
-    );
-
-    println!("{}", attrs.render(EscapeMode::Raw).0);
+pub struct Button {
+    label: String,
+    primary: bool,
+    attrs: Attributes,
 }
 
-pub fn html() {
-    let num = Some(4.9);
-    let a = "hello1";
-
-    let html = html! {
-        div id="myId" class="my-4" checked ..(attrs!(id="my" class="mx-4")) {
-            div id="myI" class="my-4" hx-get=("<script>") {
-                "Hello, World!"
-            }
-            @if let Some(n) = num {
-                div id="myII" class="my-4" hx-get=("<script>") {
-                    (n)
-                }
-            } @else {
-                div id="myV" class="my-4" hx-get=("<script>") {
-                    "Hello, World!"
-                }
-            }
-            @for i in 1..=5 {
-                div class="my-4" hx-get=("<script>") {
-                    (i)
-                }
-            }
-            @match a {
-                "hello" => "Hello world!",
-                _ => "Goodbye, World!",
-            }
-            @match num {
-                Some(n) if n > 5.0 => "Number is greater than 5",
-                Some(_) => "Number is less than or equal to 5",
-                None => "Number is None",
-            }
-            br class="my-4";
-        }
-    };
-
-    println!("{}", html);
+impl Render for Button {
+    fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
+        let class = if self.primary {
+            "btn btn-primary"
+        } else {
+            "btn"
+        };
+        render!(f, {
+            button class=(class) ..(&self.attrs) { (&self.label) }
+        });
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use plait::attrs;
+
     use super::*;
 
     #[test]
-    fn test_attrs() {
-        attrs();
-    }
+    fn test_button_rendering() {
+        // Use in templates
+        let btn = Button {
+            label: "Click me".into(),
+            primary: true,
+            attrs: attrs!(class = "dark"),
+        };
+        let output = plait::html!(
+            div { (btn) }
+        );
 
-    #[test]
-    fn test_html() {
-        html();
+        assert_eq!(
+            &*output,
+            r#"<div><button class="btn btn-primary dark">Click me</button></div>"#
+        );
     }
 }

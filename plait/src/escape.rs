@@ -23,9 +23,8 @@ fn is_url_attribute(name: &str) -> bool {
 
 /// Specifies how content should be escaped when rendered to HTML.
 ///
-/// The escape mode determines what transformations are applied to content
-/// before it is included in the HTML output. Choosing the correct escape
-/// mode is important for both security and correctness.
+/// The escape mode determines what transformations are applied to content before it is included in the HTML output.
+/// Choosing the correct escape mode is important for both security and correctness.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EscapeMode {
     /// Don't escape the input.

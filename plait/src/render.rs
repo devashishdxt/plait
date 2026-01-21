@@ -1,14 +1,9 @@
-use crate::{
-    EscapeMode,
-    escape::{escape_html, escape_url},
-};
-
-use super::{Html, PreEscaped};
+use super::{EscapeMode, Html, HtmlFormatter, PreEscaped};
 
 /// A trait for types that can be rendered as HTML content.
 ///
-/// This trait is implemented for common types like strings, numbers, and booleans.
-/// The rendering process handles escaping based on the provided [`EscapeMode`].
+/// This trait is implemented for common types like strings, numbers, and booleans. The rendering process handles
+/// escaping based on the provided [`EscapeMode`].
 ///
 /// # Implementations
 ///
@@ -25,11 +20,11 @@ use super::{Html, PreEscaped};
 ///
 /// # Implementing for Custom Types
 ///
-/// You can implement `Render` for your own types to create reusable components.
-/// Use [`HtmlFormatter`] and the [`render!`] macro to generate the HTML output:
+/// You can implement `Render` for your own types to create reusable components. The [`HtmlFormatter`] is passed from
+/// upstream, so you can use it directly with the [`render!`] macro:
 ///
 /// ```rust
-/// use plait::{EscapeMode, Html, HtmlFormatter, Render, render};
+/// use plait::{EscapeMode, HtmlFormatter, Render, render};
 ///
 /// struct UserCard {
 ///     name: String,
@@ -37,9 +32,8 @@ use super::{Html, PreEscaped};
 /// }
 ///
 /// impl Render for UserCard {
-///     fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
-///         let mut fmt = HtmlFormatter::new(output);
-///         render!(fmt, {
+///     fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
+///         render!(f, {
 ///             div class="user-card" {
 ///                 h2 { (&self.name) }
 ///                 p class="email" { (&self.email) }
@@ -58,6 +52,8 @@ use super::{Html, PreEscaped};
 ///         (user)
 ///     }
 /// );
+///
+/// assert_eq!(&*html, r#"<div class="users"><div class="user-card"><h2>Alice</h2><p class="email">alice@example.com</p></div></div>"#);
 /// ```
 ///
 /// [`EscapeMode`]: crate::EscapeMode
@@ -66,42 +62,39 @@ use super::{Html, PreEscaped};
 /// [`HtmlFormatter`]: crate::HtmlFormatter
 /// [`render!`]: crate::render
 pub trait Render {
-    /// Renders the HTML content into the provided output.
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode);
+    /// Renders the HTML content using the provided formatter.
+    fn render_to(&self, f: &mut HtmlFormatter, escape_mode: EscapeMode);
 
     /// Renders the HTML content into a new `Html` instance.
     fn render(&self, escape_mode: EscapeMode) -> Html {
         let mut output = Html::new();
-        self.render_to(&mut output, escape_mode);
+        let mut f = HtmlFormatter::new(&mut output);
+        self.render_to(&mut f, escape_mode);
         output
     }
 }
 
 impl Render for str {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
-        match escape_mode {
-            EscapeMode::Raw => output.0.push_str(self),
-            EscapeMode::Html => escape_html(output, self),
-            EscapeMode::Url => escape_url(output, self),
-        }
+    fn render_to(&self, f: &mut HtmlFormatter, escape_mode: EscapeMode) {
+        f.write_str(self, escape_mode);
     }
 }
 
 impl Render for String {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
-        self.as_str().render_to(output, escape_mode)
+    fn render_to(&self, f: &mut HtmlFormatter, escape_mode: EscapeMode) {
+        self.as_str().render_to(f, escape_mode)
     }
 }
 
 impl Render for PreEscaped<'_> {
-    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
-        output.0.push_str(self.0);
+    fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
+        f.write_str(self.0, EscapeMode::Raw);
     }
 }
 
 impl Render for Html {
-    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
-        output.0.push_str(&self.0);
+    fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
+        f.write_str(&self.0, EscapeMode::Raw);
     }
 }
 
@@ -111,11 +104,11 @@ macro_rules! impl_render_for_int {
             impl Render for $ty {
                 fn render_to(
                     &self,
-                    output: &mut Html,
+                    f: &mut HtmlFormatter,
                     _escape_mode: EscapeMode,
                 ) {
                     let mut buf = itoa::Buffer::new();
-                    output.0.push_str(buf.format(*self));
+                    f.output().0.push_str(buf.format(*self));
                 }
             }
         )*
@@ -132,11 +125,11 @@ macro_rules! impl_render_for_float {
             impl Render for $ty {
                 fn render_to(
                     &self,
-                    output: &mut Html,
+                    f: &mut HtmlFormatter,
                     _escape_mode: EscapeMode,
                 ) {
                     let mut buf = ryu::Buffer::new();
-                    output.0.push_str(buf.format(*self));
+                    f.output().0.push_str(buf.format(*self));
                 }
             }
         )*
@@ -146,16 +139,16 @@ macro_rules! impl_render_for_float {
 impl_render_for_float!(f32, f64);
 
 impl Render for bool {
-    fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
-        output.0.push_str(if *self { "true" } else { "false" });
+    fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
+        f.output().0.push_str(if *self { "true" } else { "false" });
     }
 }
 
 impl Render for char {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
+    fn render_to(&self, f: &mut HtmlFormatter, escape_mode: EscapeMode) {
         let mut buf = [0u8; 4];
         let s = self.encode_utf8(&mut buf);
-        s.render_to(output, escape_mode)
+        s.render_to(f, escape_mode)
     }
 }
 
@@ -163,8 +156,8 @@ impl<T> Render for &T
 where
     T: Render + ?Sized,
 {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
-        (**self).render_to(output, escape_mode)
+    fn render_to(&self, f: &mut HtmlFormatter, escape_mode: EscapeMode) {
+        (**self).render_to(f, escape_mode)
     }
 }
 
@@ -172,8 +165,8 @@ impl<T> Render for &mut T
 where
     T: Render + ?Sized,
 {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
-        (**self).render_to(output, escape_mode)
+    fn render_to(&self, f: &mut HtmlFormatter, escape_mode: EscapeMode) {
+        (**self).render_to(f, escape_mode)
     }
 }
 
@@ -181,8 +174,8 @@ impl<T> Render for Box<T>
 where
     T: Render + ?Sized,
 {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
-        (**self).render_to(output, escape_mode)
+    fn render_to(&self, f: &mut HtmlFormatter, escape_mode: EscapeMode) {
+        (**self).render_to(f, escape_mode)
     }
 }
 
@@ -190,9 +183,9 @@ impl<T> Render for Option<T>
 where
     T: Render,
 {
-    fn render_to(&self, output: &mut Html, escape_mode: EscapeMode) {
+    fn render_to(&self, f: &mut HtmlFormatter, escape_mode: EscapeMode) {
         if let Some(this) = self {
-            this.render_to(output, escape_mode)
+            this.render_to(f, escape_mode)
         }
     }
 }

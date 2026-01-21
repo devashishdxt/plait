@@ -1,8 +1,7 @@
 //! A fast, type-safe HTML templating library for Rust.
 //!
-//! Plait provides compile-time HTML generation with a familiar, JSX-like syntax.
-//! Templates are checked at compile time and generate efficient code with minimal
-//! runtime overhead.
+//! Plait provides compile-time HTML generation with a familiar, JSX-like syntax. Templates are checked at compile
+//! time and generate efficient code with minimal runtime overhead.
 //!
 //! # Quick Start
 //!
@@ -31,8 +30,7 @@
 //!
 //! ## Elements
 //!
-//! Elements are written as `name { children }` for normal elements or `name;`
-//! for void elements:
+//! Elements are written as `name { children }` for normal elements or `name;` for void elements:
 //!
 //! ```rust
 //! use plait::html;
@@ -44,6 +42,8 @@
 //!         input type="text" name="field";
 //!     }
 //! );
+//!
+//! assert_eq!(&*output, r#"<div><p>A paragraph</p><br><input type="text" name="field"></div>"#);
 //! ```
 //!
 //! ## Attributes
@@ -67,6 +67,8 @@
 //!         "content"
 //!     }
 //! );
+//!
+//! assert_eq!(&*output, r#"<div class="literal" data-value="container" id="main" disabled>content</div>"#);
 //! ```
 //!
 //! ## Dynamic Content
@@ -123,6 +125,8 @@
 //!         }
 //!     }
 //! );
+//!
+//! assert_eq!(&*output, r#"<div><span>Visible</span><span>hello</span></div>"#);
 //! ```
 //!
 //! ### Loops
@@ -139,6 +143,8 @@
 //!         }
 //!     }
 //! );
+//!
+//! assert_eq!(&*output, r#"<ul><li>one</li><li>two</li><li>three</li></ul>"#);
 //! ```
 //!
 //! ### Match Expressions
@@ -157,14 +163,17 @@
 //!         }
 //!     }
 //! );
+//!
+//! assert_eq!(&*output, r#"<span>Online</span>"#);
 //! ```
 //!
 //! # Custom Components
 //!
-//! Implement the [`Render`] trait to create reusable components:
+//! Implement the [`Render`] trait to create reusable components. The formatter is passed from upstream, so you can
+//! use it directly:
 //!
 //! ```rust
-//! use plait::{EscapeMode, Html, HtmlFormatter, Render, render};
+//! use plait::{EscapeMode, HtmlFormatter, Render, render};
 //!
 //! struct Button {
 //!     label: String,
@@ -172,10 +181,9 @@
 //! }
 //!
 //! impl Render for Button {
-//!     fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
-//!         let mut fmt = HtmlFormatter::new(output);
+//!     fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
 //!         let class = if self.primary { "btn btn-primary" } else { "btn" };
-//!         render!(fmt, {
+//!         render!(f, {
 //!             button class=(class) { (&self.label) }
 //!         });
 //!     }
@@ -186,13 +194,14 @@
 //! let output = plait::html!(
 //!     div { (btn) }
 //! );
+//!
+//! assert_eq!(&*output, r#"<div><button class="btn btn-primary">Click me</button></div>"#);
 //! ```
 //!
 //! # Safety
 //!
-//! Plait automatically escapes dynamic content to prevent XSS vulnerabilities.
-//! The [`Html`] and [`PreEscaped`] types represent content that is already safe
-//! and will not be escaped again.
+//! Plait automatically escapes dynamic content to prevent XSS vulnerabilities. The [`Html`] and [`PreEscaped`] types
+//! represent content that is already safe and will not be escaped again.
 
 mod attributes;
 mod error;

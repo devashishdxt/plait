@@ -1,4 +1,7 @@
-use crate::{Attributes, Error, EscapeMode, Html, Render, escape::resolve_escape_mode_for_element};
+use crate::{
+    Attributes, Error, EscapeMode, Html, Render,
+    escape::{escape_html, escape_url, resolve_escape_mode_for_element},
+};
 
 /// Returns true if the given element name is a void element.
 /// Expects the name to be in ASCII lowercase.
@@ -64,12 +67,12 @@ struct ElementEntry {
 /// use plait::{Html, HtmlFormatter};
 ///
 /// let mut output = Html::new();
-/// let mut fmt = HtmlFormatter::new(&mut output);
+/// let mut f = HtmlFormatter::new(&mut output);
 ///
-/// fmt.start_element("div");
-/// fmt.write_attribute("class", "container", None).unwrap();
-/// fmt.write_content("Hello, world!", None).unwrap();
-/// fmt.end_element().unwrap();
+/// f.start_element("div");
+/// f.write_attribute("class", "container", None).unwrap();
+/// f.write_content("Hello, world!", None).unwrap();
+/// f.end_element().unwrap();
 ///
 /// assert_eq!(&*output, "<div class=\"container\">Hello, world!</div>");
 /// ```
@@ -97,11 +100,34 @@ impl<'a> HtmlFormatter<'a> {
                 .last()
                 .unwrap()
                 .attributes
-                .render_to(self.output, EscapeMode::Raw);
+                .write_to(self.output);
 
             self.output.0.push('>');
             self.state = FormatterState::InContent;
         }
+    }
+
+    /// Writes a string directly to the output with the specified escape mode.
+    ///
+    /// This is a low-level method primarily used by [`Render`] implementations
+    /// for primitive types. It writes directly to the underlying output without
+    /// affecting the formatter's state machine.
+    ///
+    /// [`Render`]: crate::Render
+    pub(crate) fn write_str(&mut self, s: &str, escape_mode: EscapeMode) {
+        match escape_mode {
+            EscapeMode::Raw => self.output.0.push_str(s),
+            EscapeMode::Html => escape_html(&mut self.output, s),
+            EscapeMode::Url => escape_url(&mut self.output, s),
+        }
+    }
+
+    /// Returns a mutable reference to the underlying [`Html`] output.
+    ///
+    /// This provides direct access to the output buffer for advanced use cases.
+    /// Use with caution as writing directly bypasses the formatter's state machine.
+    pub(crate) fn output(&mut self) -> &mut Html {
+        self.output
     }
 
     /// Starts a new HTML element.
@@ -188,7 +214,7 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Spreads attributes to the current element.
-    pub fn spread_attributes(&mut self, attributes: Attributes) -> Result<(), Error> {
+    pub fn spread_attributes(&mut self, attributes: impl Into<Attributes>) -> Result<(), Error> {
         // Spread attributes are a way to apply multiple attributes to an element at once.
 
         if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
@@ -196,7 +222,7 @@ impl<'a> HtmlFormatter<'a> {
         }
 
         let element = self.element_stack.last_mut().unwrap();
-        element.attributes.merge(attributes);
+        element.attributes.merge(attributes.into());
 
         Ok(())
     }
@@ -226,7 +252,7 @@ impl<'a> HtmlFormatter<'a> {
         let element_name = self.element_stack.last().map(|e| e.name);
         let resolved_escape_mode = resolve_escape_mode_for_element(element_name, escape_mode);
 
-        content.render_to(self.output, resolved_escape_mode);
+        content.render_to(self, resolved_escape_mode);
 
         Ok(())
     }
@@ -239,7 +265,7 @@ impl<'a> HtmlFormatter<'a> {
         let entry = self.element_stack.pop().ok_or(Error::NoElementToClose)?;
 
         if self.state == FormatterState::TagOpened {
-            entry.attributes.render_to(self.output, EscapeMode::Raw);
+            entry.attributes.write_to(self.output);
 
             self.output.0.push('>');
         }
@@ -271,9 +297,9 @@ mod tests {
     #[test]
     fn test_simple_string() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.write_content("Hello", None).unwrap();
+        f.write_content("Hello", None).unwrap();
 
         assert_eq!(output, "Hello");
     }
@@ -281,11 +307,11 @@ mod tests {
     #[test]
     fn test_simple_element() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_content("Hello", None).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.write_content("Hello", None).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div>Hello</div>");
     }
@@ -293,13 +319,13 @@ mod tests {
     #[test]
     fn test_element_with_attributes() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_attribute("class", "container", None).unwrap();
-        fmt.write_attribute("id", "main", None).unwrap();
-        fmt.write_content("Content", None).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.write_attribute("class", "container", None).unwrap();
+        f.write_attribute("id", "main", None).unwrap();
+        f.write_content("Content", None).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div class=\"container\" id=\"main\">Content</div>");
     }
@@ -307,13 +333,13 @@ mod tests {
     #[test]
     fn test_nested_elements() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.start_element("span");
-        fmt.write_content("Nested", None).unwrap();
-        fmt.end_element().unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.start_element("span");
+        f.write_content("Nested", None).unwrap();
+        f.end_element().unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div><span>Nested</span></div>");
     }
@@ -321,15 +347,15 @@ mod tests {
     #[test]
     fn test_void_element() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.start_element("br");
-        fmt.end_element().unwrap();
-        fmt.start_element("input");
-        fmt.write_attribute("type", "text", None).unwrap();
-        fmt.end_element().unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.start_element("br");
+        f.end_element().unwrap();
+        f.start_element("input");
+        f.write_attribute("type", "text", None).unwrap();
+        f.end_element().unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div><br><input type=\"text\"></div>");
     }
@@ -337,12 +363,12 @@ mod tests {
     #[test]
     fn test_content_escaping() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_content("<script>alert('xss')</script>", None)
+        f.start_element("div");
+        f.write_content("<script>alert('xss')</script>", None)
             .unwrap();
-        fmt.end_element().unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(
             output,
@@ -353,11 +379,11 @@ mod tests {
     #[test]
     fn test_attribute_escaping() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_attribute("data-value", "a\"b<c>d", None).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.write_attribute("data-value", "a\"b<c>d", None).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div data-value=\"a&quot;b&lt;c&gt;d\"></div>");
     }
@@ -367,11 +393,11 @@ mod tests {
         use crate::PreEscaped;
 
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_content(PreEscaped("<b>Bold</b>"), None).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.write_content(PreEscaped("<b>Bold</b>"), None).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div><b>Bold</b></div>");
     }
@@ -379,12 +405,12 @@ mod tests {
     #[test]
     fn test_boolean_attribute_true() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("input");
-        fmt.write_attribute("type", "checkbox", None).unwrap();
-        fmt.write_boolean_attribute("checked", true).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("input");
+        f.write_attribute("type", "checkbox", None).unwrap();
+        f.write_boolean_attribute("checked", true).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<input type=\"checkbox\" checked>");
     }
@@ -392,12 +418,12 @@ mod tests {
     #[test]
     fn test_boolean_attribute_false() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("input");
-        fmt.write_attribute("type", "checkbox", None).unwrap();
-        fmt.write_boolean_attribute("checked", false).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("input");
+        f.write_attribute("type", "checkbox", None).unwrap();
+        f.write_boolean_attribute("checked", false).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<input type=\"checkbox\">");
     }
@@ -405,44 +431,44 @@ mod tests {
     #[test]
     fn test_attribute_outside_tag_error() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_content("Content", None).unwrap();
+        f.start_element("div");
+        f.write_content("Content", None).unwrap();
 
         // Now in InContent state, attribute should fail
-        let result = fmt.write_attribute("class", "test", None);
+        let result = f.write_attribute("class", "test", None);
         assert!(matches!(result, Err(Error::AttributeOutsideTag)));
     }
 
     #[test]
     fn test_no_element_to_close_error() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        let result = fmt.end_element();
+        let result = f.end_element();
         assert!(matches!(result, Err(Error::NoElementToClose)));
     }
 
     #[test]
     fn test_content_in_void_element_error() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("br");
-        let result = fmt.write_content("Content", None);
+        f.start_element("br");
+        let result = f.write_content("Content", None);
         assert!(matches!(result, Err(Error::ContentInVoidElement)));
     }
 
     #[test]
     fn test_optional_attribute_with_some() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_optional_attribute("class", Some("container"), None)
+        f.start_element("div");
+        f.write_optional_attribute("class", Some("container"), None)
             .unwrap();
-        fmt.end_element().unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div class=\"container\"></div>");
     }
@@ -450,12 +476,12 @@ mod tests {
     #[test]
     fn test_optional_attribute_with_none() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_optional_attribute("class", None::<&str>, None)
+        f.start_element("div");
+        f.write_optional_attribute("class", None::<&str>, None)
             .unwrap();
-        fmt.end_element().unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div></div>");
     }
@@ -463,16 +489,16 @@ mod tests {
     #[test]
     fn test_optional_attribute_mixed() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_optional_attribute("id", Some("main"), None)
+        f.start_element("div");
+        f.write_optional_attribute("id", Some("main"), None)
             .unwrap();
-        fmt.write_optional_attribute("class", None::<&str>, None)
+        f.write_optional_attribute("class", None::<&str>, None)
             .unwrap();
-        fmt.write_optional_attribute("data-value", Some("test"), None)
+        f.write_optional_attribute("data-value", Some("test"), None)
             .unwrap();
-        fmt.end_element().unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div id=\"main\" data-value=\"test\"></div>");
     }
@@ -480,25 +506,25 @@ mod tests {
     #[test]
     fn test_optional_attribute_outside_tag_error() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_content("Content", None).unwrap();
+        f.start_element("div");
+        f.write_content("Content", None).unwrap();
 
         // Now in InContent state, optional attribute should fail
-        let result = fmt.write_optional_attribute("class", Some("test"), None);
+        let result = f.write_optional_attribute("class", Some("test"), None);
         assert!(matches!(result, Err(Error::AttributeOutsideTag)));
     }
 
     #[test]
     fn test_optional_attribute_escaping() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
-        fmt.start_element("div");
-        fmt.write_optional_attribute("data-value", Some("a\"b<c>d"), None)
+        f.start_element("div");
+        f.write_optional_attribute("data-value", Some("a\"b<c>d"), None)
             .unwrap();
-        fmt.end_element().unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div data-value=\"a&quot;b&lt;c&gt;d\"></div>");
     }
@@ -506,15 +532,15 @@ mod tests {
     #[test]
     fn test_spread_attributes_basic() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let mut attrs = Attributes::new();
         attrs.add("id", "main", None);
         attrs.add("class", "container", None);
 
-        fmt.start_element("div");
-        fmt.spread_attributes(attrs).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.spread_attributes(attrs).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div id=\"main\" class=\"container\"></div>");
     }
@@ -522,13 +548,13 @@ mod tests {
     #[test]
     fn test_spread_attributes_empty() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let attrs = Attributes::new();
 
-        fmt.start_element("div");
-        fmt.spread_attributes(attrs).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.spread_attributes(attrs).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div></div>");
     }
@@ -536,15 +562,15 @@ mod tests {
     #[test]
     fn test_spread_attributes_with_existing_attributes() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let mut attrs = Attributes::new();
         attrs.add("data-value", "spread", None);
 
-        fmt.start_element("div");
-        fmt.write_attribute("id", "main", None).unwrap();
-        fmt.spread_attributes(attrs).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.write_attribute("id", "main", None).unwrap();
+        f.spread_attributes(attrs).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div id=\"main\" data-value=\"spread\"></div>");
     }
@@ -552,16 +578,15 @@ mod tests {
     #[test]
     fn test_spread_attributes_class_merging() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let mut attrs = Attributes::new();
         attrs.add("class", "spread-class", None);
 
-        fmt.start_element("div");
-        fmt.write_attribute("class", "existing-class", None)
-            .unwrap();
-        fmt.spread_attributes(attrs).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.write_attribute("class", "existing-class", None).unwrap();
+        f.spread_attributes(attrs).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div class=\"existing-class spread-class\"></div>");
     }
@@ -569,15 +594,15 @@ mod tests {
     #[test]
     fn test_spread_attributes_with_boolean() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let mut attrs = Attributes::new();
         attrs.add("type", "checkbox", None);
         attrs.add_boolean("checked", true);
 
-        fmt.start_element("input");
-        fmt.spread_attributes(attrs).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("input");
+        f.spread_attributes(attrs).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<input type=\"checkbox\" checked>");
     }
@@ -585,15 +610,15 @@ mod tests {
     #[test]
     fn test_spread_attributes_overwrites_non_class() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let mut attrs = Attributes::new();
         attrs.add("id", "spread-id", None);
 
-        fmt.start_element("div");
-        fmt.write_attribute("id", "original-id", None).unwrap();
-        fmt.spread_attributes(attrs).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.write_attribute("id", "original-id", None).unwrap();
+        f.spread_attributes(attrs).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div id=\"spread-id\"></div>");
     }
@@ -601,34 +626,34 @@ mod tests {
     #[test]
     fn test_spread_attributes_outside_tag_error_in_content() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let attrs = Attributes::new();
 
-        fmt.start_element("div");
-        fmt.write_content("Content", None).unwrap();
+        f.start_element("div");
+        f.write_content("Content", None).unwrap();
 
         // Now in InContent state, spread should fail
-        let result = fmt.spread_attributes(attrs);
+        let result = f.spread_attributes(attrs);
         assert!(matches!(result, Err(Error::AttributeOutsideTag)));
     }
 
     #[test]
     fn test_spread_attributes_outside_tag_error_idle() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let attrs = Attributes::new();
 
         // In Idle state (no element started), spread should fail
-        let result = fmt.spread_attributes(attrs);
+        let result = f.spread_attributes(attrs);
         assert!(matches!(result, Err(Error::AttributeOutsideTag)));
     }
 
     #[test]
     fn test_spread_attributes_multiple_spreads() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let mut attrs1 = Attributes::new();
         attrs1.add("id", "main", None);
@@ -636,10 +661,10 @@ mod tests {
         let mut attrs2 = Attributes::new();
         attrs2.add("data-value", "test", None);
 
-        fmt.start_element("div");
-        fmt.spread_attributes(attrs1).unwrap();
-        fmt.spread_attributes(attrs2).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.spread_attributes(attrs1).unwrap();
+        f.spread_attributes(attrs2).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(output, "<div id=\"main\" data-value=\"test\"></div>");
     }
@@ -647,14 +672,14 @@ mod tests {
     #[test]
     fn test_spread_attributes_with_escaped_values() {
         let mut output = Html::new();
-        let mut fmt = HtmlFormatter::new(&mut output);
+        let mut f = HtmlFormatter::new(&mut output);
 
         let mut attrs = Attributes::new();
         attrs.add("data-value", "<script>alert('xss')</script>", None);
 
-        fmt.start_element("div");
-        fmt.spread_attributes(attrs).unwrap();
-        fmt.end_element().unwrap();
+        f.start_element("div");
+        f.spread_attributes(attrs).unwrap();
+        f.end_element().unwrap();
 
         assert_eq!(
             output,
