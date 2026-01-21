@@ -1,7 +1,7 @@
 [package]
-name = "spool-macros"
+name = "plait-macros"
 version = "0.1.0"
-description = "Macros for `spool`: A modern HTML templating library for Rust that embraces composition."
+description = "Macros for `plait`: A modern HTML templating library for Rust that embraces composition."
 edition = "2024"
 
 [lib]

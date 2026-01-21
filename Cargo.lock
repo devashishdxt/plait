@@ -43,6 +43,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
+name = "plait"
+version = "0.1.0"
+dependencies = [
+ "hescape",
+ "indexmap",
+ "itoa",
+ "percent-encoding",
+ "plait-macros",
+ "ryu",
+ "thiserror",
+]
+
+[[package]]
+name = "plait-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "plait-tests"
+version = "0.1.0"
+dependencies = [
+ "plait",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -65,35 +94,6 @@ name = "ryu"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a50f4cf475b65d88e057964e0e9bb1f0aa9bbb2036dc65c64596b42932536984"
-
-[[package]]
-name = "spool"
-version = "0.1.0"
-dependencies = [
- "hescape",
- "indexmap",
- "itoa",
- "percent-encoding",
- "ryu",
- "spool-macros",
- "thiserror",
-]
-
-[[package]]
-name = "spool-macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "spool-tests"
-version = "0.1.0"
-dependencies = [
- "spool",
-]
 
 [[package]]
 name = "syn"

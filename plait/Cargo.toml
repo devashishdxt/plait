@@ -1,5 +1,5 @@
 [package]
-name = "spool"
+name = "plait"
 version = "0.1.0"
 description = "A modern HTML templating library for Rust that embraces composition."
 edition = "2024"
@@ -9,6 +9,6 @@ hescape.workspace = true
 indexmap.workspace = true
 itoa.workspace = true
 percent-encoding.workspace = true
+plait-macros.workspace = true
 ryu.workspace = true
-spool-macros.workspace = true
 thiserror.workspace = true

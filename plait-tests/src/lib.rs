@@ -1,4 +1,4 @@
-use spool::{Render, attrs, html};
+use plait::{Render, attrs, html, EscapeMode};
 
 pub fn attrs() {
     let attrs = attrs!(
@@ -14,7 +14,7 @@ pub fn attrs() {
         )
     );
 
-    println!("{}", attrs.render(spool::EscapeMode::Raw).0);
+    println!("{}", attrs.render(EscapeMode::Raw).0);
 }
 
 pub fn html() {

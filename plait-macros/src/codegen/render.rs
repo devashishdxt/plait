@@ -51,7 +51,7 @@ fn push_statements_for_node(statements: &mut Vec<TokenStream>, formatter: &Ident
     match node {
         Node::Text(text) => {
             statements.push(quote! {
-                #formatter .write_content(#text, ::core::option::Option::Some(::spool::EscapeMode::Raw)).unwrap();
+                #formatter .write_content(#text, ::core::option::Option::Some(::plait::EscapeMode::Raw)).unwrap();
             });
         }
         Node::Expression(expr) => {
@@ -60,10 +60,10 @@ fn push_statements_for_node(statements: &mut Vec<TokenStream>, formatter: &Ident
                     ::core::option::Option::None
                 },
                 Some(EscapeMode::Html) => quote! {
-                    ::core::option::Option::Some(::spool::EscapeMode::Html)
+                    ::core::option::Option::Some(::plait::EscapeMode::Html)
                 },
                 Some(EscapeMode::Raw) => quote! {
-                    ::core::option::Option::Some(::spool::EscapeMode::Raw)
+                    ::core::option::Option::Some(::plait::EscapeMode::Raw)
                 },
             };
             let expr = expr.expr;
@@ -110,7 +110,7 @@ fn push_statements_for_element(
 
                 match value {
                     Some(AttributeValue::Literal { value }) => statements.push(quote! {
-                        #formatter .write_attribute( #name, #value, ::core::option::Option::Some(::spool::EscapeMode::Raw) ).unwrap();
+                        #formatter .write_attribute( #name, #value, ::core::option::Option::Some(::plait::EscapeMode::Raw) ).unwrap();
                     }),
                     Some(AttributeValue::Dynamic { expr }) => {
                         let escape_mode = match expr.escape_mode {
@@ -118,10 +118,10 @@ fn push_statements_for_element(
                                 ::core::option::Option::None
                             },
                             Some(EscapeMode::Html) => quote! {
-                                ::core::option::Option::Some(::spool::EscapeMode::Html)
+                                ::core::option::Option::Some(::plait::EscapeMode::Html)
                             },
                             Some(EscapeMode::Raw) => quote! {
-                                ::core::option::Option::Some(::spool::EscapeMode::Raw)
+                                ::core::option::Option::Some(::plait::EscapeMode::Raw)
                             },
                         };
                         let expr = expr.expr;
@@ -136,10 +136,10 @@ fn push_statements_for_element(
                                 ::core::option::Option::None
                             },
                             Some(EscapeMode::Html) => quote! {
-                                ::core::option::Option::Some(::spool::EscapeMode::Html)
+                                ::core::option::Option::Some(::plait::EscapeMode::Html)
                             },
                             Some(EscapeMode::Raw) => quote! {
-                                ::core::option::Option::Some(::spool::EscapeMode::Raw)
+                                ::core::option::Option::Some(::plait::EscapeMode::Raw)
                             },
                         };
                         let expr = expr.expr;

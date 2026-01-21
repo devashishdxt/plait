@@ -37,7 +37,7 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
 
                 match value {
                     Some(AttributeValue::Literal { value }) => add_calls.push(quote! {
-                        __spool_attrs.add( #name, #value, ::core::option::Option::Some(::spool::EscapeMode::Raw) );
+                        __spool_attrs.add( #name, #value, ::core::option::Option::Some(::plait::EscapeMode::Raw) );
                     }),
                     Some(AttributeValue::Dynamic { expr }) => {
                         let escape_mode = match expr.escape_mode {
@@ -45,10 +45,10 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
                                 ::core::option::Option::None
                             },
                             Some(EscapeMode::Html) => quote! {
-                                ::core::option::Option::Some(::spool::EscapeMode::Html)
+                                ::core::option::Option::Some(::plait::EscapeMode::Html)
                             },
                             Some(EscapeMode::Raw) => quote! {
-                                ::core::option::Option::Some(::spool::EscapeMode::Raw)
+                                ::core::option::Option::Some(::plait::EscapeMode::Raw)
                             },
                         };
                         let expr = expr.expr;
@@ -63,10 +63,10 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
                                 ::core::option::Option::None
                             },
                             Some(EscapeMode::Html) => quote! {
-                                ::core::option::Option::Some(::spool::EscapeMode::Html)
+                                ::core::option::Option::Some(::plait::EscapeMode::Html)
                             },
                             Some(EscapeMode::Raw) => quote! {
-                                ::core::option::Option::Some(::spool::EscapeMode::Raw)
+                                ::core::option::Option::Some(::plait::EscapeMode::Raw)
                             },
                         };
                         let expr = expr.expr;
@@ -93,7 +93,7 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
 
     quote! {
         {
-            let mut __spool_attrs = ::spool::Attributes::with_capacity(#capacity);
+            let mut __spool_attrs = ::plait::Attributes::with_capacity(#capacity);
             #(#add_calls)*
             __spool_attrs
         }
