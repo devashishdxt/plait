@@ -9,16 +9,44 @@ use syn::{
     token::{Dot, Eq, Paren, Question},
 };
 
-/// An HTML attribute, either a name-value pair or a spread pattern.
+/// An HTML attribute in the template AST.
+///
+/// Attributes can be either name-value pairs with various value types, or spread
+/// patterns that merge in attributes from another collection.
+///
+/// # Syntax
+///
+/// ```text
+/// // Name-value pairs
+/// name="literal"           // Literal string
+/// name=(expr)              // Dynamic expression
+/// name=[optional_expr]     // Optional (renders if Some)
+/// name?[bool_expr]         // Boolean (renders name only if true)
+/// name                     // Boolean (always true)
+///
+/// // Spread pattern
+/// ..(attrs_expr)           // Merge attributes from expression
+/// ```
 #[derive(Debug)]
 pub enum Attribute {
-    /// Name-value pair: `name="value"`, `name=(expr)`, `name=[optional]`, `name?[bool]`
+    /// A name-value pair attribute.
+    ///
+    /// If `value` is `None`, the attribute is rendered as a boolean attribute
+    /// that is always present (e.g., `disabled`).
     NameValue {
+        /// The attribute name.
         name: AttributeName,
+        /// The attribute value, or `None` for boolean attributes without a value.
         value: Option<AttributeValue>,
     },
-    /// Spread pattern: `..(attrs)` where attrs is an expression
-    Spread { expr: Expr },
+
+    /// A spread pattern that merges attributes from an expression.
+    ///
+    /// The expression must evaluate to an [`Attributes`](plait::Attributes) value.
+    Spread {
+        /// The expression providing the attributes to spread.
+        expr: Expr,
+    },
 }
 
 impl Parse for Attribute {

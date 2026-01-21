@@ -43,7 +43,36 @@ struct ElementEntry {
     attributes: Attributes,
 }
 
-/// Formatter for HTML output.
+/// A stateful formatter for constructing well-formed HTML output.
+///
+/// `HtmlFormatter` uses a state machine to ensure HTML is generated correctly:
+/// - Elements are properly opened and closed
+/// - Attributes are only written when a tag is open
+/// - Void elements (like `<br>`, `<img>`) are handled correctly
+/// - Content is properly escaped based on context
+///
+/// # State Machine
+///
+/// The formatter transitions between three states:
+/// - **Idle**: Ready to start a new element or write raw content
+/// - **TagOpened**: An opening tag has started (`<div`), attributes can be added
+/// - **InContent**: The opening tag is closed (`>`), content can be written
+///
+/// # Example
+///
+/// ```rust
+/// use plait::{Html, HtmlFormatter};
+///
+/// let mut output = Html::new();
+/// let mut fmt = HtmlFormatter::new(&mut output);
+///
+/// fmt.start_element("div");
+/// fmt.write_attribute("class", "container", None).unwrap();
+/// fmt.write_content("Hello, world!", None).unwrap();
+/// fmt.end_element().unwrap();
+///
+/// assert_eq!(&*output, "<div class=\"container\">Hello, world!</div>");
+/// ```
 pub struct HtmlFormatter<'a> {
     output: &'a mut Html,
     element_stack: Vec<ElementEntry>,

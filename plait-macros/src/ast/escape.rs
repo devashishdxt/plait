@@ -3,13 +3,16 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
-/// Specifies how to escape the input.
+/// Specifies how to escape content in the template macro AST.
+///
+/// This is the macro-crate version of the escape mode, used during parsing.
+/// It maps to the runtime [`plait::EscapeMode`] during code generation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EscapeMode {
-    /// Don't escape the input.
+    /// Don't escape the input. Use for pre-escaped or trusted content.
     Raw,
 
-    /// Escape the input as HTML (for html content and attributes).
+    /// Escape the input as HTML. This is the default for dynamic content.
     Html,
 }
 
@@ -19,6 +22,13 @@ impl Parse for EscapeMode {
     }
 }
 
+/// Parses an escape mode identifier from the input stream.
+///
+/// Accepts `raw` or `html` as valid escape modes.
+///
+/// # Errors
+///
+/// Returns an error if the identifier is not a recognized escape mode.
 pub fn parse_escape_mode(input: ParseStream<'_>) -> syn::Result<EscapeMode> {
     let ident: Ident = input.parse()?;
 

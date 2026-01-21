@@ -6,14 +6,31 @@ use syn::{
 
 use crate::ast::{Element, ForLoop, IfCondition, MatchExpression, ParenthesizedExpression};
 
+/// A node in the template AST representing a piece of content.
+///
+/// Nodes are the building blocks of templates and can represent static text,
+/// dynamic expressions, HTML elements, or control flow constructs.
 #[derive(Debug)]
 pub enum Node {
+    /// Literal text content: `"hello world"`.
     Text(LitStr),
+
+    /// A dynamic expression: `(expr)` or `(expr : escape_mode)`.
     Expression(ParenthesizedExpression),
+
+    /// A fragment containing multiple child nodes: `{ node1 node2 }`.
     Fragment(Vec<Node>),
+
+    /// An if condition: `@if condition { ... }`.
     If(IfCondition),
+
+    /// A for loop: `@for pattern in expr { ... }`.
     For(ForLoop),
+
+    /// A match expression: `@match expr { ... }`.
     Match(MatchExpression),
+
+    /// An HTML element: `div class="container" { ... }`.
     Element(Element),
 }
 

@@ -1,6 +1,11 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
+/// Implementation of the `html!` procedural macro.
+///
+/// Wraps the input template in boilerplate that creates an [`Html`](plait::Html)
+/// output and [`HtmlFormatter`](plait::HtmlFormatter), then delegates to
+/// `render!` for the actual content generation.
 pub fn html_impl(input: TokenStream) -> TokenStream {
     quote! {
         {

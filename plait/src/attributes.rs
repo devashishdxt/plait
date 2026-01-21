@@ -2,7 +2,23 @@ use indexmap::IndexMap;
 
 use crate::{EscapeMode, Html, Render, escape::resolve_escape_mode_for_attribute};
 
-/// Collection of attributes for an HTML element.
+/// A collection of HTML attributes that can be rendered into an element.
+///
+/// This struct maintains an ordered collection of attributes and handles special
+/// cases like class merging (multiple `class` attributes are concatenated with spaces).
+///
+/// # Example
+///
+/// ```rust
+/// use plait::Attributes;
+///
+/// let mut attrs = Attributes::new();
+/// attrs.add("id", "main", None);
+/// attrs.add("class", "container", None);
+/// attrs.add("class", "flex", None); // Classes are merged
+///
+/// // Renders as: id="main" class="container flex"
+/// ```
 #[derive(Default)]
 pub struct Attributes {
     attributes: IndexMap<&'static str, Option<Html>>,

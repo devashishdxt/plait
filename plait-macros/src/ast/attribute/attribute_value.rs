@@ -6,20 +6,47 @@ use syn::{
 
 use crate::ast::{BracketedExpression, ParenthesizedExpression};
 
-/// The value of an HTML attribute.
+/// The value of an HTML attribute in the template AST.
+///
+/// Attribute values can be literal strings, dynamic expressions, optional values
+/// that render only when present, or boolean expressions that control whether
+/// the attribute is rendered at all.
 #[derive(Debug)]
 pub enum AttributeValue {
-    /// Literal attribute: `class="container"`
-    Literal { value: LitStr },
+    /// A literal string value: `class="container"`.
+    ///
+    /// The value is included verbatim without escaping at parse time.
+    Literal {
+        /// The literal string value.
+        value: LitStr,
+    },
 
-    /// Dynamic attribute: `href=(url)`
-    Dynamic { expr: ParenthesizedExpression },
+    /// A dynamic value from an expression: `href=(url)`.
+    ///
+    /// The expression is evaluated at runtime and the result is rendered.
+    Dynamic {
+        /// The expression to evaluate.
+        expr: ParenthesizedExpression,
+    },
 
-    /// Optional attribute: `alt=[maybe_alt]` - only renders if Some
-    Optional { expr: BracketedExpression },
+    /// An optional value: `alt=[maybe_alt]`.
+    ///
+    /// The expression must evaluate to `Option<T>`. If `Some`, the attribute
+    /// is rendered with the inner value. If `None`, the attribute is omitted.
+    Optional {
+        /// The expression to evaluate (must be Option<T>).
+        expr: BracketedExpression,
+    },
 
-    /// Boolean attribute: `checked?[is_checked]` - renders name only if true
-    Boolean { expr: Expr },
+    /// A boolean attribute: `checked?[is_checked]`.
+    ///
+    /// The expression must evaluate to `bool`. If `true`, the attribute is
+    /// rendered without a value (e.g., `<input checked>`). If `false`, the
+    /// attribute is omitted entirely.
+    Boolean {
+        /// The boolean expression to evaluate.
+        expr: Expr,
+    },
 }
 
 impl Parse for AttributeValue {

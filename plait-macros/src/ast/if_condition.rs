@@ -6,10 +6,28 @@ use syn::{
 
 use crate::ast::Node;
 
+/// An if condition in the template AST.
+///
+/// Represents conditional rendering using `@if` syntax. Supports regular boolean
+/// conditions, `if let` pattern matching, and optional `@else` branches.
+///
+/// # Syntax
+///
+/// ```text
+/// @if condition { ... }
+/// @if condition { ... } @else { ... }
+/// @if condition { ... } @else if other { ... } @else { ... }
+/// @if let Some(x) = optional { ... }
+/// ```
 #[derive(Debug)]
 pub struct IfCondition {
+    /// The condition expression (or `if let` pattern).
     pub condition: Expr,
+
+    /// The nodes to render when the condition is true.
     pub then_branch: Vec<Node>,
+
+    /// The optional else branch.
     pub else_branch: Option<ElseBranch>,
 }
 
@@ -19,9 +37,15 @@ impl Parse for IfCondition {
     }
 }
 
+/// The else branch of an if condition.
+///
+/// Can be either another if condition (for `@else if`) or a final else block.
 #[derive(Debug)]
 pub enum ElseBranch {
+    /// An else-if branch: `@else if condition { ... }`.
     If(Box<IfCondition>),
+
+    /// A final else branch: `@else { ... }`.
     Else(Vec<Node>),
 }
 

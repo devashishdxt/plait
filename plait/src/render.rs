@@ -5,7 +5,66 @@ use crate::{
 
 use super::{Html, PreEscaped};
 
-/// Trait for rendering HTML content into an output.
+/// A trait for types that can be rendered as HTML content.
+///
+/// This trait is implemented for common types like strings, numbers, and booleans.
+/// The rendering process handles escaping based on the provided [`EscapeMode`].
+///
+/// # Implementations
+///
+/// Built-in implementations include:
+/// - `&str`, `String` - Escaped according to the escape mode
+/// - Integer types (`i8`, `i16`, `i32`, `i64`, `i128`, `isize`, `u8`, `u16`, `u32`, `u64`, `u128`, `usize`)
+/// - Float types (`f32`, `f64`)
+/// - `bool` - Renders as `"true"` or `"false"`
+/// - `char` - Escaped according to the escape mode
+/// - [`PreEscaped`] - Rendered without additional escaping
+/// - [`Html`] - Rendered without additional escaping
+/// - `Option<T>` - Renders the inner value if `Some`, nothing if `None`
+/// - `&T`, `&mut T`, `Box<T>` where `T: Render`
+///
+/// # Implementing for Custom Types
+///
+/// You can implement `Render` for your own types to create reusable components.
+/// Use [`HtmlFormatter`] and the [`render!`] macro to generate the HTML output:
+///
+/// ```rust
+/// use plait::{EscapeMode, Html, HtmlFormatter, Render, render};
+///
+/// struct UserCard {
+///     name: String,
+///     email: String,
+/// }
+///
+/// impl Render for UserCard {
+///     fn render_to(&self, output: &mut Html, _escape_mode: EscapeMode) {
+///         let mut fmt = HtmlFormatter::new(output);
+///         render!(fmt, {
+///             div class="user-card" {
+///                 h2 { (&self.name) }
+///                 p class="email" { (&self.email) }
+///             }
+///         });
+///     }
+/// }
+///
+/// // Now UserCard can be used in templates:
+/// let user = UserCard {
+///     name: "Alice".into(),
+///     email: "alice@example.com".into(),
+/// };
+/// let html = plait::html!(
+///     div class="users" {
+///         (user)
+///     }
+/// );
+/// ```
+///
+/// [`EscapeMode`]: crate::EscapeMode
+/// [`PreEscaped`]: crate::PreEscaped
+/// [`Html`]: crate::Html
+/// [`HtmlFormatter`]: crate::HtmlFormatter
+/// [`render!`]: crate::render
 pub trait Render {
     /// Renders the HTML content into the provided output.
     fn render_to(&self, output: &mut Html, escape_mode: EscapeMode);

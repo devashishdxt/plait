@@ -2,7 +2,20 @@ use core::{fmt, ops::Deref};
 
 use crate::PreEscaped;
 
-/// A html string known to contain safe HTML.
+/// An owned string that is known to contain safe, properly escaped HTML.
+///
+/// This type is the primary output type for HTML rendering operations. The inner
+/// string is guaranteed to be safe for direct inclusion in HTML documents without
+/// additional escaping.
+///
+/// # Safety
+///
+/// The `Html` type assumes its contents are already properly escaped. Creating an
+/// `Html` instance with unescaped user input could lead to XSS vulnerabilities.
+/// Use the [`Render`] trait or [`HtmlFormatter`] to safely construct HTML content.
+///
+/// [`Render`]: crate::Render
+/// [`HtmlFormatter`]: crate::HtmlFormatter
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Html(pub String);
 

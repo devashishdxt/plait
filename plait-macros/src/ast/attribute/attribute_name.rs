@@ -6,9 +6,20 @@ use syn::{
     token::{At, Colon, Dollar, Dot, Minus, Pound},
 };
 
-/// The name of an HTML attribute.
+/// The name of an HTML attribute in the template AST.
+///
+/// Attribute names support various syntaxes to accommodate different frameworks
+/// and HTML conventions. See the `parse_attribute_name` function for detailed
+/// syntax rules.
+///
+/// # Examples
+///
+/// Standard attributes: `class`, `id`, `href`
+/// Data attributes: `data-value`, `data-user-id`
+/// Framework-specific: `@click`, `:class`, `hx-get`, `hx-on:click`
 #[derive(Debug, Clone)]
 pub struct AttributeName {
+    /// The parsed attribute name as a string literal.
     pub name: LitStr,
 }
 

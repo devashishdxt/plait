@@ -6,9 +6,26 @@ use syn::{
 
 use crate::ast::Node;
 
+/// A match expression in the template AST.
+///
+/// Represents pattern matching using `@match` syntax, allowing you to render
+/// different content based on the structure of a value.
+///
+/// # Syntax
+///
+/// ```text
+/// @match value {
+///     Pattern => content,
+///     Pattern if guard => content,
+///     _ => fallback,
+/// }
+/// ```
 #[derive(Debug)]
 pub struct MatchExpression {
+    /// The expression to match against.
     pub expression: Expr,
+
+    /// The match arms.
     pub arms: Vec<MatchArm>,
 }
 
@@ -18,10 +35,19 @@ impl Parse for MatchExpression {
     }
 }
 
+/// A single arm in a match expression.
+///
+/// Each arm consists of a pattern, an optional guard condition, and the
+/// content to render if the pattern matches.
 #[derive(Debug)]
 pub struct MatchArm {
+    /// The pattern to match against.
     pub pattern: Pat,
+
+    /// An optional guard condition: `if condition`.
     pub guard: Option<Expr>,
+
+    /// The node to render if this arm matches.
     pub body: Node,
 }
 

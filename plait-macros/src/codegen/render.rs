@@ -30,6 +30,10 @@ fn parse_html_input(input: ParseStream<'_>) -> syn::Result<RenderInput> {
     Ok(RenderInput { formatter, node })
 }
 
+/// Implementation of the `render!` procedural macro.
+///
+/// Parses the input as a formatter identifier followed by template content,
+/// then generates code that writes the rendered HTML to the formatter.
 pub fn render_impl(input: TokenStream) -> TokenStream {
     let render_input: RenderInput = match syn::parse2(input) {
         Ok(a) => a,

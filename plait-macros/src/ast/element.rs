@@ -7,11 +7,33 @@ use syn::{
 
 use crate::ast::{Attribute, Node};
 
-/// An element in the HTML.
+/// An HTML element in the template AST.
+///
+/// Represents a parsed HTML element with its tag name, attributes, and children.
+/// Normal elements have a body enclosed in braces, while void elements (like `<br>`,
+/// `<input>`) are terminated with a semicolon.
+///
+/// # Syntax
+///
+/// ```text
+/// // Normal element
+/// div class="container" {
+///     "content"
+/// }
+///
+/// // Void element
+/// br;
+/// input type="text" name="field";
+/// ```
 #[derive(Debug)]
 pub struct Element {
+    /// The lowercase element tag name.
     pub name: LitStr,
+
+    /// The attributes on this element.
     pub attributes: Vec<Attribute>,
+
+    /// The child nodes of this element (empty for void elements).
     pub children: Vec<Node>,
 }
 

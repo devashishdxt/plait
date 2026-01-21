@@ -6,10 +6,26 @@ use syn::{
 
 use crate::ast::Node;
 
+/// A for loop in the template AST.
+///
+/// Represents iteration using `@for` syntax, allowing you to render content
+/// for each item in a collection.
+///
+/// # Syntax
+///
+/// ```text
+/// @for item in items { ... }
+/// @for (index, item) in items.iter().enumerate() { ... }
+/// ```
 #[derive(Debug)]
 pub struct ForLoop {
+    /// The pattern to bind each item to (e.g., `item`, `(i, x)`).
     pub pattern: Pat,
+
+    /// The expression to iterate over.
     pub expression: Expr,
+
+    /// The nodes to render for each iteration.
     pub body: Vec<Node>,
 }
 

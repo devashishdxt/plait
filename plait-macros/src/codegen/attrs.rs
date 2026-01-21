@@ -22,6 +22,10 @@ fn parse_attrs_input(input: ParseStream<'_>) -> syn::Result<AttrsInput> {
     Ok(AttrsInput { attributes })
 }
 
+/// Implementation of the `attrs!` procedural macro.
+///
+/// Parses the input tokens as a list of attributes and generates code that
+/// constructs an [`Attributes`](plait::Attributes) collection at runtime.
 pub fn attrs_impl(input: TokenStream) -> TokenStream {
     let attrs_input: AttrsInput = match syn::parse2(input) {
         Ok(a) => a,
