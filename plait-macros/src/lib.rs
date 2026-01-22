@@ -1,4 +1,4 @@
-//! Procedural macros for the plait HTML templating library.
+//! Procedural macros for the `plait` HTML templating library.
 //!
 //! This crate provides three macros for generating HTML:
 //!
