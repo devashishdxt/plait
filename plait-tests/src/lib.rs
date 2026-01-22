@@ -1,21 +1,9 @@
-use plait::{Attributes, EscapeMode, HtmlFormatter, Render, render};
+use plait::{Attributes, Render, component};
 
-pub struct Button {
-    label: String,
-    primary: bool,
-    attrs: Attributes,
-}
-
-impl Render for Button {
-    fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
-        let class = if self.primary {
-            "btn btn-primary"
-        } else {
-            "btn"
-        };
-        render!(f, {
-            button class=(class) ..(&self.attrs) { (&self.label) }
-        });
+pub fn button<'a>(label: &'a str, primary: bool, attrs: &'a Attributes) -> impl Render + 'a {
+    let class = if primary { "btn btn-primary" } else { "btn" };
+    component! {
+        button class=(class) ..(attrs) { (label) }
     }
 }
 
@@ -27,12 +15,8 @@ mod tests {
 
     #[test]
     fn test_button_rendering() {
-        // Use in templates
-        let btn = Button {
-            label: "Click me".into(),
-            primary: true,
-            attrs: attrs!(class = "dark"),
-        };
+        let attrs = attrs!(class = "dark");
+        let btn = button("Click me", true, &attrs);
         let output = plait::html!(
             div { (btn) }
         );

@@ -146,3 +146,51 @@ pub fn html(input: TokenStream) -> TokenStream {
 pub fn render(input: TokenStream) -> TokenStream {
     codegen::render_impl(input.into()).into()
 }
+
+/// Creates a lazy component that defers rendering until embedded in a parent template.
+///
+/// Unlike [`html!`], which eagerly renders to a new `Html` buffer, `component!` returns a `LazyRender` that
+/// captures the template and renders it lazily using the parent's formatter when embedded.
+///
+/// # Syntax
+///
+/// The content syntax is the same as [`html!`].
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use plait::{Render, component};
+///
+/// pub fn button(label: &str, primary: bool) -> impl Render + '_ {
+///     let class = if primary { "btn btn-primary" } else { "btn" };
+///     component! {
+///         button class=(class) { (label) }
+///     }
+/// }
+///
+/// // Use in templates - renders using parent's formatter
+/// let btn = button("Click me", true);
+/// let output = plait::html!(
+///     div { (btn) }
+/// );
+/// ```
+///
+/// # Borrowing in Components
+///
+/// Components may be rendered multiple times, so use `(&value)` to borrow owned values:
+///
+/// ```rust,ignore
+/// // Owns its data - borrow with (&label)
+/// pub fn greeting(label: String) -> impl Render {
+///     component! { span { (&label) } }
+/// }
+///
+/// // Takes a reference - include lifetime in return type
+/// pub fn greeting_ref(label: &str) -> impl Render + '_ {
+///     component! { span { (label) } }
+/// }
+/// ```
+#[proc_macro]
+pub fn component(input: TokenStream) -> TokenStream {
+    codegen::component_impl(input.into()).into()
+}

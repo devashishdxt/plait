@@ -20,9 +20,10 @@
 //!
 //! # Macros
 //!
-//! Plait provides three main macros:
+//! Plait provides four main macros:
 //!
 //! - [`html!`] - Creates an [`Html`] value from a template
+//! - [`component!`] - Creates a reusable component that renders lazily
 //! - [`render!`] - Renders content to an existing [`HtmlFormatter`]
 //! - [`attrs!`] - Creates an [`Attributes`] collection
 //!
@@ -169,34 +170,39 @@
 //!
 //! # Custom Components
 //!
-//! Implement the [`Render`] trait to create reusable components. The formatter is passed from upstream, so you can
-//! use it directly:
+//! Use the [`component!`] macro to create reusable components as functions:
 //!
 //! ```rust
-//! use plait::{EscapeMode, HtmlFormatter, Render, render};
+//! use plait::{Render, component};
 //!
-//! struct Button {
-//!     label: String,
-//!     primary: bool,
-//! }
-//!
-//! impl Render for Button {
-//!     fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
-//!         let class = if self.primary { "btn btn-primary" } else { "btn" };
-//!         render!(f, {
-//!             button class=(class) { (&self.label) }
-//!         });
+//! fn button(label: &str, primary: bool) -> impl Render + '_ {
+//!     let class = if primary { "btn btn-primary" } else { "btn" };
+//!     component! {
+//!         button class=(class) { (label) }
 //!     }
 //! }
 //!
 //! // Use in templates
-//! let btn = Button { label: "Click me".into(), primary: true };
 //! let output = plait::html!(
-//!     div { (btn) }
+//!     div { (button("Click me", true)) }
 //! );
 //!
 //! assert_eq!(&*output, r#"<div><button class="btn btn-primary">Click me</button></div>"#);
 //! ```
+//!
+//! For components with owned data, use `(&value)` to borrow:
+//!
+//! ```rust
+//! use plait::{Render, component};
+//!
+//! fn greeting(message: String) -> impl Render {
+//!     component! {
+//!         span { (&message) }
+//!     }
+//! }
+//! ```
+//!
+//! For more control, implement the [`Render`] trait directly. See the [`Render`] documentation for details.
 //!
 //! # Safety
 //!
@@ -208,6 +214,7 @@ mod error;
 mod escape;
 mod formatter;
 mod html;
+mod lazy;
 mod pre_escaped;
 mod render;
 
@@ -217,8 +224,9 @@ pub use self::{
     escape::EscapeMode,
     formatter::HtmlFormatter,
     html::Html,
+    lazy::LazyRender,
     pre_escaped::{DOCTYPE, PreEscaped},
     render::Render,
 };
 
-pub use plait_macros::{attrs, html, render};
+pub use plait_macros::{attrs, component, html, render};

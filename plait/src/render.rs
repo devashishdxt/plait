@@ -56,7 +56,46 @@ use super::{EscapeMode, Html, HtmlFormatter, PreEscaped};
 /// assert_eq!(&*html, r#"<div class="users"><div class="user-card"><h2>Alice</h2><p class="email">alice@example.com</p></div></div>"#);
 /// ```
 ///
+/// # Using the `component!` Macro
+///
+/// For simpler components, use the [`component!`] macro instead of manually implementing `Render`.
+/// It returns an `impl Render` that defers rendering until embedded in a parent template:
+///
+/// ```rust
+/// use plait::{Render, component};
+///
+/// fn user_card<'a>(name: &'a str, email: &'a str) -> impl Render + 'a {
+///     component! {
+///         div class="user-card" {
+///             h2 { (name) }
+///             p class="email" { (email) }
+///         }
+///     }
+/// }
+///
+/// let html = plait::html!(
+///     div class="users" {
+///         (user_card("Alice", "alice@example.com"))
+///     }
+/// );
+///
+/// assert_eq!(&*html, r#"<div class="users"><div class="user-card"><h2>Alice</h2><p class="email">alice@example.com</p></div></div>"#);
+/// ```
+///
+/// When using owned values, borrow them with `(&value)` to allow multiple renders:
+///
+/// ```rust
+/// use plait::{Render, component};
+///
+/// fn greeting(message: String) -> impl Render {
+///     component! {
+///         span { (&message) }
+///     }
+/// }
+/// ```
+///
 /// [`EscapeMode`]: crate::EscapeMode
+/// [`component!`]: crate::component
 /// [`PreEscaped`]: crate::PreEscaped
 /// [`Html`]: crate::Html
 /// [`HtmlFormatter`]: crate::HtmlFormatter
