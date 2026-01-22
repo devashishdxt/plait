@@ -117,8 +117,8 @@ impl<'a> HtmlFormatter<'a> {
     pub(crate) fn write_str(&mut self, s: &str, escape_mode: EscapeMode) {
         match escape_mode {
             EscapeMode::Raw => self.output.0.push_str(s),
-            EscapeMode::Html => escape_html(&mut self.output, s),
-            EscapeMode::Url => escape_url(&mut self.output, s),
+            EscapeMode::Html => escape_html(self.output, s),
+            EscapeMode::Url => escape_url(self.output, s),
         }
     }
 

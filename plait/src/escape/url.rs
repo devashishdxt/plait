@@ -57,10 +57,10 @@ fn parse_scheme(s: &str) -> Option<String> {
     let colon = s.find(':')?;
 
     // If '/', '?', or '#' appears before ':', it is relative
-    if let Some(i) = s.find(&['/', '?', '#']) {
-        if i < colon {
-            return None;
-        }
+    if let Some(i) = s.find(['/', '?', '#'])
+        && i < colon
+    {
+        return None;
     }
 
     let prefix = &s[..colon];
