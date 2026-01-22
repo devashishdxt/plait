@@ -7,8 +7,7 @@ hescape = "0.1.0"
 indexmap = "2.13.0"
 itoa = "1.0.17"
 percent-encoding = "2.3.2"
-plait = { path = "./plait" }
-plait-macros = { path = "./plait-macros" }
+plait-macros = { version = "0.1.0", path = "./plait-macros" }
 proc-macro2 = "1.0.105"
 quote = "1.0.43"
 ryu = "1.0.22"
