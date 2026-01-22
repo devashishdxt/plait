@@ -1,7 +1,13 @@
 [package]
 name = "plait-macros"
 version = "0.1.0"
+authors = ["Devashish Dixit <devashishdxt@gmail.com>"]
+license = "MIT/Apache-2.0"
 description = "Macros for `plait`: A modern HTML templating library for Rust that embraces composition."
+homepage = "https://github.com/devashishdxt/plait"
+repository = "https://github.com/devashishdxt/plait"
+categories = ["template-engine", "web-programming"]
+keywords = ["html", "template", "markup"]
 edition = "2024"
 
 [lib]
