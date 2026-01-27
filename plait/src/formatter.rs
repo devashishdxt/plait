@@ -1,7 +1,4 @@
-use crate::{
-    Attributes, Error, EscapeMode, Html, Render,
-    escape::{escape_html, escape_url, resolve_escape_mode_for_element},
-};
+use crate::{Attributes, Error, EscapeMode, Html, Render};
 
 /// Returns true if the given element name is a void element.
 /// Expects the name to be in ASCII lowercase.
@@ -46,20 +43,19 @@ struct ElementEntry {
     attributes: Attributes,
 }
 
-/// A stateful formatter for constructing well-formed HTML output.
+/// A state machine for building well-formed HTML output.
 ///
-/// `HtmlFormatter` uses a state machine to ensure HTML is generated correctly:
-/// - Elements are properly opened and closed
-/// - Attributes are only written when a tag is open
-/// - Void elements (like `<br>`, `<img>`) are handled correctly
-/// - Content is properly escaped based on context
+/// `HtmlFormatter` provides a structured API for generating HTML elements with proper nesting, attribute handling,
+/// and content escaping. It maintains an internal stack to track open elements and ensures that void elements (like
+/// `<br>`, `<img>`) are handled correctly.
 ///
 /// # State Machine
 ///
-/// The formatter transitions between three states:
+/// The formatter operates as a state machine with three states:
+///
 /// - **Idle**: Ready to start a new element or write raw content
-/// - **TagOpened**: An opening tag has started (`<div`), attributes can be added
-/// - **InContent**: The opening tag is closed (`>`), content can be written
+/// - **TagOpened**: An opening tag has started (e.g., `<div`); attributes can be added
+/// - **InContent**: The tag is closed (`>`); content or child elements can be written
 ///
 /// # Example
 ///
@@ -74,7 +70,7 @@ struct ElementEntry {
 /// f.write_content("Hello, world!", None).unwrap();
 /// f.end_element().unwrap();
 ///
-/// assert_eq!(&*output, "<div class=\"container\">Hello, world!</div>");
+/// assert_eq!(output, "<div class=\"container\">Hello, world!</div>");
 /// ```
 pub struct HtmlFormatter<'a> {
     output: &'a mut Html,
@@ -96,29 +92,15 @@ impl<'a> HtmlFormatter<'a> {
     fn close_pending_tag(&mut self) {
         // This writes the `>` character to transition from `TagOpened` to `InContent`.
         if self.state == FormatterState::TagOpened && !self.element_stack.is_empty() {
-            self.element_stack
-                .last()
-                .unwrap()
-                .attributes
-                .write_to(self.output);
+            let attributes = &self.element_stack.last().unwrap().attributes;
 
-            self.output.0.push('>');
+            if !attributes.is_empty() {
+                self.output.inner_mut().push(' ');
+                attributes.write_to(self.output);
+            }
+
+            self.output.inner_mut().push('>');
             self.state = FormatterState::InContent;
-        }
-    }
-
-    /// Writes a string directly to the output with the specified escape mode.
-    ///
-    /// This is a low-level method primarily used by [`Render`] implementations
-    /// for primitive types. It writes directly to the underlying output without
-    /// affecting the formatter's state machine.
-    ///
-    /// [`Render`]: crate::Render
-    pub(crate) fn write_str(&mut self, s: &str, escape_mode: EscapeMode) {
-        match escape_mode {
-            EscapeMode::Raw => self.output.0.push_str(s),
-            EscapeMode::Html => escape_html(self.output, s),
-            EscapeMode::Url => escape_url(self.output, s),
         }
     }
 
@@ -141,8 +123,8 @@ impl<'a> HtmlFormatter<'a> {
         self.close_pending_tag();
 
         // Write the opening tag start
-        self.output.0.push('<');
-        self.output.0.push_str(name);
+        self.output.inner_mut().push('<');
+        self.output.inner_mut().push_str(name);
 
         // Push to element stack
         self.element_stack.push(ElementEntry {
@@ -214,7 +196,7 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Spreads attributes to the current element.
-    pub fn spread_attributes(&mut self, attributes: impl Into<Attributes>) -> Result<(), Error> {
+    pub fn spread_attributes(&mut self, attributes: Attributes) -> Result<(), Error> {
         // Spread attributes are a way to apply multiple attributes to an element at once.
 
         if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
@@ -222,7 +204,7 @@ impl<'a> HtmlFormatter<'a> {
         }
 
         let element = self.element_stack.last_mut().unwrap();
-        element.attributes.merge(attributes.into());
+        element.attributes.merge(attributes);
 
         Ok(())
     }
@@ -250,7 +232,7 @@ impl<'a> HtmlFormatter<'a> {
 
         // Determine escape mode based on parent element
         let element_name = self.element_stack.last().map(|e| e.name);
-        let resolved_escape_mode = resolve_escape_mode_for_element(element_name, escape_mode);
+        let resolved_escape_mode = EscapeMode::resolve_for_element(element_name, escape_mode);
 
         content.render_to(self, resolved_escape_mode);
 
@@ -265,18 +247,21 @@ impl<'a> HtmlFormatter<'a> {
         let entry = self.element_stack.pop().ok_or(Error::NoElementToClose)?;
 
         if self.state == FormatterState::TagOpened {
-            entry.attributes.write_to(self.output);
+            if !entry.attributes.is_empty() {
+                self.output.inner_mut().push(' ');
+                entry.attributes.write_to(self.output);
+            }
 
-            self.output.0.push('>');
+            self.output.inner_mut().push('>');
         }
 
         // Note: void elements shouldn't have closing tags in HTML5
         if !entry.is_void {
             // Normal elements: close pending tag and write closing tag
             self.close_pending_tag();
-            self.output.0.push_str("</");
-            self.output.0.push_str(entry.name);
-            self.output.0.push('>');
+            self.output.inner_mut().push_str("</");
+            self.output.inner_mut().push_str(entry.name);
+            self.output.inner_mut().push('>');
         }
 
         // Update state based on whether there are more elements on the stack
@@ -542,7 +527,7 @@ mod tests {
         f.spread_attributes(attrs).unwrap();
         f.end_element().unwrap();
 
-        assert_eq!(output, "<div id=\"main\" class=\"container\"></div>");
+        assert_eq!(output, "<div class=\"container\" id=\"main\"></div>");
     }
 
     #[test]

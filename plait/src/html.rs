@@ -2,21 +2,22 @@ use core::{fmt, ops::Deref};
 
 use crate::PreEscaped;
 
-/// An owned string that is known to contain safe, properly escaped HTML.
+/// An owned string of escaped HTML content.
 ///
-/// This type is the primary output type for HTML rendering operations. The inner string is guaranteed to be safe for
-/// direct inclusion in HTML documents without additional escaping.
+/// `Html` is the primary output type for rendered HTML content. It guarantees that the content it contains has been
+/// properly escaped (or was explicitly marked as pre-escaped). When rendered again, `Html` content is included
+/// verbatim without additional escaping.
 ///
-/// # Safety
+/// # Example
 ///
-/// The `Html` type assumes its contents are already properly escaped. Creating an `Html` instance with unescaped user
-/// input could lead to XSS vulnerabilities. Use the [`Render`] trait or [`HtmlFormatter`] to safely construct HTML
-/// content.
+/// ```rust
+/// use plait::{Html, render};
 ///
-/// [`Render`]: crate::Render
-/// [`HtmlFormatter`]: crate::HtmlFormatter
+/// let html: Html = render("<script>alert('xss')</script>");
+/// assert_eq!(html, "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;");
+/// ```
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Html(pub String);
+pub struct Html(String);
 
 impl Html {
     /// Creates a new empty `Html` string.
@@ -24,9 +25,19 @@ impl Html {
         Html(String::new())
     }
 
+    /// Creates a new `Html` string with the specified capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Html(String::with_capacity(capacity))
+    }
+
     /// Returns a reference to the pre-escaped string.
     pub fn as_pre_escaped(&self) -> PreEscaped<'_> {
         PreEscaped(&self.0)
+    }
+
+    /// Returns a mutable reference to the inner string.
+    pub(crate) fn inner_mut(&mut self) -> &mut String {
+        &mut self.0
     }
 }
 
@@ -38,33 +49,21 @@ impl Deref for Html {
     }
 }
 
-impl AsRef<str> for Html {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
-impl AsRef<[u8]> for Html {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
 impl fmt::Display for Html {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl fmt::Write for Html {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.0.write_str(s)
-    }
-}
-
 impl From<Html> for String {
     fn from(value: Html) -> Self {
         value.0
+    }
+}
+
+impl<'a> From<&'a Html> for PreEscaped<'a> {
+    fn from(value: &'a Html) -> Self {
+        PreEscaped(&value.0)
     }
 }
 

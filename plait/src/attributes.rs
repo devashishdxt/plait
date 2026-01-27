@@ -1,46 +1,65 @@
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 
-use crate::{EscapeMode, Html, HtmlFormatter, Render, escape::resolve_escape_mode_for_attribute};
+use crate::{EscapeMode, Html, HtmlFormatter, Render, render};
 
-/// A collection of HTML attributes that can be rendered into an element.
+/// A collection of HTML element attributes.
 ///
-/// This struct maintains an ordered collection of attributes and handles special cases like class merging (multiple
-/// `class` attributes are concatenated with spaces).
+/// `Attributes` provides a builder-style API for constructing HTML element attributes, with special handling for
+/// class attributes (which are merged rather than overwritten) and boolean attributes (rendered without a value,
+/// e.g., `disabled`).
 ///
-/// # Example
+/// Values are automatically escaped according to their attribute name context (e.g., URL validation and HTML escaping
+/// for `href`, `src`, etc.).
 ///
-/// The recommended way to construct attributes is using the [`attrs!`](crate::attrs) macro:
+/// # Using the `attrs!` Macro
+///
+/// The [`attrs!`](crate::attrs) macro provides a concise way to construct attributes:
 ///
 /// ```rust
-/// use plait::{attrs, EscapeMode, Render};
+/// use plait::{attrs, render};
 ///
 /// let class_name = "container";
+/// let maybe_title: Option<&str> = Some("Hello");
 /// let is_disabled = true;
 ///
 /// let attrs = attrs!(
-///     id="main"
-///     class=(class_name)
-///     class="flex"
-///     disabled?[is_disabled]
+///     id="main"                   // Literal string value
+///     class=(class_name)          // Dynamic value from expression
+///     title=[maybe_title]         // Optional value (only added if Some)
+///     disabled?[is_disabled]      // Boolean attribute (added if condition is true)
+///     hidden                      // Boolean attribute (always added)
 /// );
 ///
-/// assert_eq!(&*attrs.render(EscapeMode::Raw), r#" id="main" class="container flex" disabled"#);
+/// assert_eq!(render(attrs), r#"class="container" id="main" title="Hello" disabled hidden"#);
 /// ```
 ///
-/// You can also construct attributes manually:
+/// ## Macro Syntax
+///
+/// | Syntax                 | Description                                            |
+/// |------------------------|--------------------------------------------------------|
+/// | `name="literal"`       | Literal string value                                   |
+/// | `name=(expr)`          | Dynamic value from expression                          |
+/// | `name=[optional_expr]` | Optional value (only rendered if `Some`)               |
+/// | `name?[bool_expr]`     | Boolean attribute (rendered if condition is `true`)    |
+/// | `name`                 | Boolean attribute (always rendered)                    |
+/// | `..(spread_expr)`      | Spread attributes from another `Attributes` collection |
+///
+/// # Builder API Example
 ///
 /// ```rust
-/// use plait::{Attributes, EscapeMode, Render};
+/// use plait::{Attributes, render};
 ///
 /// let mut attrs = Attributes::new();
 /// attrs.add("id", "main", None);
 /// attrs.add("class", "container", None);
-/// attrs.add("class", "flex", None); // Classes are merged
+/// attrs.add("class", "flex", None);  // Classes are merged
+/// attrs.add_boolean("disabled", true);
 ///
-/// assert_eq!(&*attrs.render(EscapeMode::Raw), r#" id="main" class="container flex""#);
+/// assert_eq!(render(attrs), "class=\"container flex\" id=\"main\" disabled");
 /// ```
 #[derive(Default, Clone)]
 pub struct Attributes {
+    classes: IndexSet<String>,
     attributes: IndexMap<&'static str, Option<Html>>,
 }
 
@@ -48,6 +67,7 @@ impl Attributes {
     /// Creates a new instance of `Attributes`.
     pub fn new() -> Self {
         Attributes {
+            classes: IndexSet::new(),
             attributes: IndexMap::new(),
         }
     }
@@ -55,28 +75,27 @@ impl Attributes {
     /// Creates a new instance of `Attributes` with a specified capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Attributes {
+            classes: IndexSet::new(),
             attributes: IndexMap::with_capacity(capacity),
         }
     }
 
     /// Adds an attribute to the collection.
     pub fn add(&mut self, name: &'static str, value: impl Render, escape_mode: Option<EscapeMode>) {
-        let resolved_escape_mode = resolve_escape_mode_for_attribute(name, escape_mode);
+        let resolved_escape_mode = EscapeMode::resolve_for_attribute(name, escape_mode);
 
         if name == "class" {
-            let existing = self.attributes.get_mut(name);
+            let rendered = render(value);
+            let new_classes = rendered.split(' ');
 
-            if let Some(Some(existing)) = existing {
-                existing.0.push(' ');
-                let mut f = HtmlFormatter::new(existing);
-                value.render_to(&mut f, resolved_escape_mode);
-            } else {
-                self.attributes
-                    .insert(name, Some(value.render(resolved_escape_mode)));
+            for new_class in new_classes {
+                if !new_class.is_empty() {
+                    self.classes.insert(new_class.to_owned());
+                }
             }
         } else {
             self.attributes
-                .insert(name, Some(value.render(resolved_escape_mode)));
+                .insert(name, Some(render_with_mode(value, resolved_escape_mode)));
         }
     }
 
@@ -101,22 +120,12 @@ impl Attributes {
 
     /// Merges another set of attributes into this collection.
     pub fn merge(&mut self, other: Attributes) {
-        for (name, value) in other.attributes {
-            if name == "class" {
-                if let Some(value) = value {
-                    let existing = self.attributes.get_mut(name);
+        for class in other.classes {
+            self.classes.insert(class);
+        }
 
-                    if let Some(Some(existing)) = existing {
-                        existing.0.push(' ');
-                        let mut f = HtmlFormatter::new(existing);
-                        value.render_to(&mut f, EscapeMode::Raw);
-                    } else {
-                        self.attributes.insert(name, Some(value));
-                    }
-                }
-            } else {
-                self.attributes.insert(name, value);
-            }
+        for (name, value) in other.attributes {
+            self.attributes.insert(name, value);
         }
     }
 
@@ -124,16 +133,34 @@ impl Attributes {
     ///
     /// This is a low-level method used internally by [`HtmlFormatter`].
     pub(crate) fn write_to(&self, output: &mut Html) {
+        if !self.classes.is_empty() {
+            output.inner_mut().push_str("class=\"");
+
+            for class in &self.classes {
+                output.inner_mut().push_str(class);
+                output.inner_mut().push(' ');
+            }
+
+            output.inner_mut().pop();
+            output.inner_mut().push_str("\" ");
+        }
+
         for (name, value) in self.attributes.iter() {
-            output.0.push(' ');
-            output.0.push_str(name);
+            output.inner_mut().push_str(name);
 
             if let Some(value) = value {
-                output.0.push_str("=\"");
-                output.0.push_str(&value.0);
-                output.0.push('"');
+                output.inner_mut().push_str("=\"");
+                output.inner_mut().push_str(value);
+                output.inner_mut().push('"');
             }
+            output.inner_mut().push(' ');
         }
+
+        output.inner_mut().pop();
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.classes.is_empty() && self.attributes.is_empty()
     }
 }
 
@@ -144,13 +171,31 @@ impl From<&Attributes> for Attributes {
 }
 
 impl Render for Attributes {
-    fn render_to(&self, f: &mut HtmlFormatter, _escape_mode: EscapeMode) {
+    fn render_html(&self, f: &mut HtmlFormatter) {
+        self.render_raw(f);
+    }
+
+    fn render_url(&self, f: &mut HtmlFormatter) {
+        self.render_raw(f);
+    }
+
+    fn render_raw(&self, f: &mut HtmlFormatter) {
         self.write_to(f.output());
     }
 }
 
+/// Renders a value into an HTML string with the specified escape mode.
+fn render_with_mode(value: impl Render, mode: EscapeMode) -> Html {
+    let mut output = Html::new();
+    let mut f = HtmlFormatter::new(&mut output);
+    value.render_to(&mut f, mode);
+    output
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::render;
+
     use super::*;
 
     /// Helper to get attribute value as &str for comparison
@@ -162,6 +207,10 @@ mod tests {
             .as_ref()
             .unwrap()
             .as_ref()
+    }
+
+    fn has_class(attrs: &Attributes, class: &str) -> bool {
+        attrs.classes.contains(class)
     }
 
     #[test]
@@ -207,8 +256,9 @@ mod tests {
         attrs.add("class", "foo", None);
         attrs.add("class", "bar", None);
 
-        assert_eq!(attrs.attributes.len(), 1);
-        assert_eq!(get_value(&attrs, "class"), "foo bar");
+        assert_eq!(attrs.classes.len(), 2);
+        assert!(has_class(&attrs, "foo"));
+        assert!(has_class(&attrs, "bar"));
     }
 
     #[test]
@@ -218,8 +268,36 @@ mod tests {
         attrs.add("class", "b", None);
         attrs.add("class", "c", None);
 
-        assert_eq!(attrs.attributes.len(), 1);
-        assert_eq!(get_value(&attrs, "class"), "a b c");
+        assert_eq!(attrs.classes.len(), 3);
+        assert!(has_class(&attrs, "a"));
+        assert!(has_class(&attrs, "b"));
+        assert!(has_class(&attrs, "c"));
+    }
+
+    #[test]
+    fn test_add_class_attribute_merges_multiple_with_spaces() {
+        let mut attrs = Attributes::new();
+        attrs.add("class", "a b", None);
+        attrs.add("class", "c d", None);
+
+        assert_eq!(attrs.classes.len(), 4);
+        assert!(has_class(&attrs, "a"));
+        assert!(has_class(&attrs, "b"));
+        assert!(has_class(&attrs, "c"));
+        assert!(has_class(&attrs, "d"));
+    }
+
+    #[test]
+    fn test_add_class_attribute_merges_multiple_with_many_spaces() {
+        let mut attrs = Attributes::new();
+        attrs.add("class", "a  b", None);
+        attrs.add("class", "a  c  d", None);
+
+        assert_eq!(attrs.classes.len(), 4);
+        assert!(has_class(&attrs, "a"));
+        assert!(has_class(&attrs, "b"));
+        assert!(has_class(&attrs, "c"));
+        assert!(has_class(&attrs, "d"));
     }
 
     #[test]
@@ -261,8 +339,9 @@ mod tests {
         attrs.add_optional("class", Some("foo"), None);
         attrs.add_optional("class", Some("bar"), None);
 
-        assert_eq!(attrs.attributes.len(), 1);
-        assert_eq!(get_value(&attrs, "class"), "foo bar");
+        assert_eq!(attrs.classes.len(), 2);
+        assert!(has_class(&attrs, "foo"));
+        assert!(has_class(&attrs, "bar"));
     }
 
     #[test]
@@ -305,9 +384,11 @@ mod tests {
         attrs.add_optional("id", Some("my-checkbox"), None);
         attrs.add_optional("name", None::<&str>, None);
 
-        assert_eq!(attrs.attributes.len(), 4); // type, class, checked, id
+        assert_eq!(attrs.attributes.len(), 3); // type, checked, id
+        assert_eq!(attrs.classes.len(), 2);
+        assert!(has_class(&attrs, "form-check"));
+        assert!(has_class(&attrs, "mt-2"));
         assert_eq!(get_value(&attrs, "type"), "checkbox");
-        assert_eq!(get_value(&attrs, "class"), "form-check mt-2");
         assert!(attrs.attributes.get("checked").unwrap().is_none()); // boolean attr
         assert_eq!(get_value(&attrs, "id"), "my-checkbox");
         assert!(attrs.attributes.get("name").is_none()); // was None, not added
@@ -325,15 +406,10 @@ mod tests {
 
     // Tests for Render implementation
 
-    /// Helper to render attributes to string
-    fn render_attrs(attrs: &Attributes) -> String {
-        attrs.render(EscapeMode::Html).0
-    }
-
     #[test]
     fn test_render_empty_attributes() {
         let attrs = Attributes::new();
-        assert_eq!(render_attrs(&attrs), "");
+        assert_eq!(render(&attrs), "");
     }
 
     #[test]
@@ -341,7 +417,7 @@ mod tests {
         let mut attrs = Attributes::new();
         attrs.add("id", "main", None);
 
-        assert_eq!(render_attrs(&attrs), " id=\"main\"");
+        assert_eq!(render(&attrs), "id=\"main\"");
     }
 
     #[test]
@@ -349,7 +425,7 @@ mod tests {
         let mut attrs = Attributes::new();
         attrs.add_boolean("disabled", true);
 
-        assert_eq!(render_attrs(&attrs), " disabled");
+        assert_eq!(render(&attrs), "disabled");
     }
 
     #[test]
@@ -358,7 +434,7 @@ mod tests {
         attrs.add("data-value", "<script>", None);
 
         // Values are escaped when added, render should not double-escape
-        assert_eq!(render_attrs(&attrs), " data-value=\"&lt;script&gt;\"");
+        assert_eq!(render(&attrs), "data-value=\"&lt;script&gt;\"");
     }
 
     #[test]
@@ -368,11 +444,7 @@ mod tests {
         attrs.add("class", "container", None);
         attrs.add_boolean("hidden", true);
 
-        let rendered = render_attrs(&attrs);
-
-        assert!(rendered.contains(" id=\"main\""));
-        assert!(rendered.contains(" class=\"container\""));
-        assert!(rendered.contains(" hidden"));
+        assert_eq!(render(&attrs), "class=\"container\" id=\"main\" hidden");
     }
 
     #[test]
@@ -381,6 +453,6 @@ mod tests {
         attrs.add("class", "foo", None);
         attrs.add("class", "bar", None);
 
-        assert_eq!(render_attrs(&attrs), " class=\"foo bar\"");
+        assert_eq!(render(&attrs), "class=\"foo bar\"");
     }
 }

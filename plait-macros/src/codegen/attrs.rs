@@ -41,7 +41,7 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
 
                 match value {
                     Some(AttributeValue::Literal { value }) => add_calls.push(quote! {
-                        __spool_attrs.add( #name, #value, ::core::option::Option::Some(::plait::EscapeMode::Raw) );
+                        __plait_attrs.add( #name, #value, ::core::option::Option::Some(::plait::EscapeMode::Raw) );
                     }),
                     Some(AttributeValue::Dynamic { expr }) => {
                         let escape_mode = match expr.escape_mode {
@@ -58,7 +58,7 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
                         let expr = expr.expr;
 
                         add_calls.push(quote! {
-                            __spool_attrs.add( #name, #expr, #escape_mode );
+                            __plait_attrs.add( #name, &(#expr), #escape_mode );
                         });
                     },
                     Some(AttributeValue::Optional { expr }) => {
@@ -76,19 +76,19 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
                         let expr = expr.expr;
 
                         add_calls.push(quote! {
-                            __spool_attrs.add_optional( #name, #expr, #escape_mode );
+                            __plait_attrs.add_optional( #name, ::core::option::Option::as_ref(&(#expr)), #escape_mode );
                         });
                     },
                     Some(AttributeValue::Boolean { expr }) => add_calls.push(quote! {
-                        __spool_attrs.add_boolean( #name, #expr );
+                        __plait_attrs.add_boolean( #name, #expr );
                     }),
                     None => add_calls.push(quote! {
-                        __spool_attrs.add_boolean( #name, true );
+                        __plait_attrs.add_boolean( #name, true );
                     }),
                 }
             }
             Attribute::Spread { expr } => add_calls.push(quote! {
-                __spool_attrs.merge( #expr );
+                __plait_attrs.merge( ::core::clone::Clone::clone(&(#expr)) );
             }),
         }
     }
@@ -97,9 +97,9 @@ pub fn attrs_impl(input: TokenStream) -> TokenStream {
 
     quote! {
         {
-            let mut __spool_attrs = ::plait::Attributes::with_capacity(#capacity);
+            let mut __plait_attrs = ::plait::Attributes::with_capacity(#capacity);
             #(#add_calls)*
-            __spool_attrs
+            __plait_attrs
         }
     }
 }

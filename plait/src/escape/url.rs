@@ -3,17 +3,17 @@ use crate::Html;
 /// Safe fallback URL used when a potentially dangerous URL is blocked.
 const BLOCKED_URL_FALLBACK: &str = "about:invalid";
 
-fn is_allowed_scheme(scheme: &str) -> bool {
-    matches!(scheme, "http" | "https" | "mailto" | "tel")
-}
-
-/// Escapes URL special characters in a string and writes the result to the output HTML.
+/// Escapes URL special characters in a string and writes the result to the output String.
 pub fn escape_url(output: &mut Html, s: &str) {
     if !is_safe_url(s) {
-        output.0.push_str(BLOCKED_URL_FALLBACK);
+        output.inner_mut().push_str(BLOCKED_URL_FALLBACK);
     } else {
-        hescape::escape_to(output, s).unwrap();
+        hescape::escape_to(output.inner_mut(), s).unwrap();
     }
+}
+
+fn is_allowed_scheme(scheme: &str) -> bool {
+    matches!(scheme, "http" | "https" | "mailto" | "tel")
 }
 
 fn is_safe_url(url: &str) -> bool {
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn escape_url_data_blocked() {
         let mut output = Html::new();
-        escape_url(&mut output, "data:text/html,<script>alert(1)</script>");
+        escape_url(&mut output, "data:text/String,<script>alert(1)</script>");
         assert_eq!(output, BLOCKED_URL_FALLBACK);
     }
 

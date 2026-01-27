@@ -1,25 +1,7 @@
 mod html;
 mod url;
 
-pub use self::{html::escape_html, url::escape_url};
-
-fn is_url_attribute(name: &str) -> bool {
-    matches!(
-        name,
-        "href"
-            | "src"
-            | "action"
-            | "formaction"
-            | "poster"
-            | "cite"
-            | "data"
-            | "profile"
-            | "manifest"
-            | "icon"
-            | "background"
-            | "xlink:href"
-    )
-}
+pub(crate) use self::{html::escape_html, url::escape_url};
 
 /// Specifies how content should be escaped when rendered to HTML.
 ///
@@ -37,21 +19,39 @@ pub enum EscapeMode {
     Url,
 }
 
-/// Resolves the escape mode for an element based on element name.
-pub fn resolve_escape_mode_for_element(
-    _name: Option<&str>,
-    provided: Option<EscapeMode>,
-) -> EscapeMode {
-    provided.unwrap_or(EscapeMode::Html) // TODO: filter based on name, for example, `script` should be `Js`
+impl EscapeMode {
+    /// Resolves the escape mode for an element based on element name.
+    pub(crate) fn resolve_for_element(_name: Option<&str>, provided: Option<EscapeMode>) -> Self {
+        // TODO: filter based on `name`, for example, `script` should be `Js`
+        provided.unwrap_or(EscapeMode::Html)
+    }
+
+    /// Resolves the escape mode for an attribute based on attribute name.
+    pub(crate) fn resolve_for_attribute(name: &str, provided: Option<EscapeMode>) -> Self {
+        provided.unwrap_or_else(|| {
+            if is_url_attribute(name) {
+                EscapeMode::Url
+            } else {
+                EscapeMode::Html
+            }
+        })
+    }
 }
 
-/// Resolves the escape mode for an attribute based on attribute name.
-pub fn resolve_escape_mode_for_attribute(name: &str, provided: Option<EscapeMode>) -> EscapeMode {
-    provided.unwrap_or_else(|| {
-        if is_url_attribute(name) {
-            EscapeMode::Url
-        } else {
-            EscapeMode::Html
-        }
-    })
+fn is_url_attribute(name: &str) -> bool {
+    matches!(
+        name,
+        "href"
+            | "src"
+            | "action"
+            | "formaction"
+            | "poster"
+            | "cite"
+            | "data"
+            | "profile"
+            | "manifest"
+            | "icon"
+            | "background"
+            | "xlink:href"
+    )
 }

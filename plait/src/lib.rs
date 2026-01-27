@@ -1,31 +1,30 @@
 //! A fast, type-safe HTML templating library for Rust.
 //!
-//! Plait provides compile-time HTML generation with a familiar, JSX-like syntax. Templates are checked at compile
+//! Plait provides compile-time HTML generation with a concise, Rust-native syntax. Templates are checked at compile
 //! time and generate efficient code with minimal runtime overhead.
 //!
 //! # Quick Start
 //!
 //! ```rust
-//! use plait::html;
+//! use plait::{html, render};
 //!
 //! let name = "World";
-//! let output = html!(
+//! let template = html! {
 //!     div class="greeting" {
 //!         h1 { "Hello, " (name) "!" }
 //!     }
-//! );
+//! };
 //!
-//! assert_eq!(&*output, r#"<div class="greeting"><h1>Hello, World!</h1></div>"#);
+//! let html = render(template);
+//! assert_eq!(html, r#"<div class="greeting"><h1>Hello, World!</h1></div>"#);
 //! ```
 //!
 //! # Macros
 //!
-//! Plait provides four main macros:
+//! Plait provides two macros:
 //!
-//! - [`html!`] - Creates an [`Html`] value from a template
-//! - [`component!`] - Creates a reusable component that renders lazily
-//! - [`render!`] - Renders content to an existing [`HtmlFormatter`]
-//! - [`attrs!`] - Creates an [`Attributes`] collection
+//! - [`html!`] - Creates a [`RenderFn`] from a template, which can be rendered using [`render()`]
+//! - [`attrs!`] - Creates an [`Attributes`] collection for use in templates
 //!
 //! # Template Syntax
 //!
@@ -34,17 +33,17 @@
 //! Elements are written as `name { children }` for normal elements or `name;` for void elements:
 //!
 //! ```rust
-//! use plait::html;
+//! use plait::{html, render};
 //!
-//! let output = html!(
+//! let template = html! {
 //!     div {
 //!         p { "A paragraph" }
 //!         br;
 //!         input type="text" name="field";
 //!     }
-//! );
+//! };
 //!
-//! assert_eq!(&*output, r#"<div><p>A paragraph</p><br><input type="text" name="field"></div>"#);
+//! assert_eq!(render(template), r#"<div><p>A paragraph</p><br><input type="text" name="field"></div>"#);
 //! ```
 //!
 //! ## Attributes
@@ -52,13 +51,13 @@
 //! Attributes support several value types:
 //!
 //! ```rust
-//! use plait::html;
+//! use plait::{html, render};
 //!
 //! let class_name = "container";
 //! let maybe_id: Option<&str> = Some("main");
 //! let is_disabled = true;
 //!
-//! let output = html!(
+//! let template = html! {
 //!     div
 //!         class="literal"              // Literal string
 //!         data-value=(class_name)      // Dynamic expression
@@ -67,9 +66,9 @@
 //!     {
 //!         "content"
 //!     }
-//! );
+//! };
 //!
-//! assert_eq!(&*output, r#"<div class="literal" data-value="container" id="main" disabled>content</div>"#);
+//! assert_eq!(render(template), r#"<div class="literal" data-value="container" id="main" disabled>content</div>"#);
 //! ```
 //!
 //! ## Dynamic Content
@@ -77,30 +76,30 @@
 //! Expressions in parentheses are escaped by default:
 //!
 //! ```rust
-//! use plait::html;
+//! use plait::{html, render};
 //!
 //! let user_input = "<script>alert('xss')</script>";
 //!
-//! let output = html!(
+//! let template = html! {
 //!     div { (user_input) }
-//! );
+//! };
 //!
 //! // Content is safely escaped
-//! assert!(!output.contains("<script>"));
+//! assert!(!render(template).contains("<script>"));
 //! ```
 //!
 //! Use `: raw` to include pre-escaped content:
 //!
 //! ```rust
-//! use plait::html;
+//! use plait::{html, render};
 //!
 //! let trusted_html = "<strong>Bold</strong>";
 //!
-//! let output = html!(
+//! let template = html! {
 //!     div { (trusted_html : raw) }
-//! );
+//! };
 //!
-//! assert!(output.contains("<strong>"));
+//! assert!(render(template).contains("<strong>"));
 //! ```
 //!
 //! ## Control Flow
@@ -108,12 +107,12 @@
 //! ### Conditionals
 //!
 //! ```rust
-//! use plait::html;
+//! use plait::{html, render};
 //!
 //! let show = true;
 //! let value: Option<&str> = Some("hello");
 //!
-//! let output = html!(
+//! let template = html! {
 //!     div {
 //!         @if show {
 //!             span { "Visible" }
@@ -125,84 +124,70 @@
 //!             span { "No value" }
 //!         }
 //!     }
-//! );
+//! };
 //!
-//! assert_eq!(&*output, r#"<div><span>Visible</span><span>hello</span></div>"#);
+//! assert_eq!(render(template), r#"<div><span>Visible</span><span>hello</span></div>"#);
 //! ```
 //!
 //! ### Loops
 //!
 //! ```rust
-//! use plait::html;
+//! use plait::{html, render};
 //!
 //! let items = vec!["one", "two", "three"];
 //!
-//! let output = html!(
+//! let template = html! {
 //!     ul {
 //!         @for item in &items {
 //!             li { (item) }
 //!         }
 //!     }
-//! );
+//! };
 //!
-//! assert_eq!(&*output, r#"<ul><li>one</li><li>two</li><li>three</li></ul>"#);
+//! assert_eq!(render(template), r#"<ul><li>one</li><li>two</li><li>three</li></ul>"#);
 //! ```
 //!
 //! ### Match Expressions
 //!
 //! ```rust
-//! use plait::html;
+//! use plait::{html, render};
 //!
 //! enum Status { Active, Inactive }
 //! let status = Status::Active;
 //!
-//! let output = html!(
+//! let template = html! {
 //!     span {
 //!         @match status {
 //!             Status::Active => "Online",
 //!             Status::Inactive => "Offline",
 //!         }
 //!     }
-//! );
+//! };
 //!
-//! assert_eq!(&*output, r#"<span>Online</span>"#);
+//! assert_eq!(render(template), r#"<span>Online</span>"#);
 //! ```
 //!
 //! # Custom Components
 //!
-//! Use the [`component!`] macro to create reusable components as functions:
+//! Create reusable components as functions that return `impl Render`:
 //!
 //! ```rust
-//! use plait::{Render, component};
+//! use plait::{Render, html, render};
 //!
-//! fn button(label: &str, primary: bool) -> impl Render + '_ {
+//! fn button(label: &str, primary: bool) -> impl Render {
 //!     let class = if primary { "btn btn-primary" } else { "btn" };
-//!     component! {
+//!     html! {
 //!         button class=(class) { (label) }
 //!     }
 //! }
 //!
 //! // Use in templates
-//! let output = plait::html!(
+//! let template = html! {
 //!     div { (button("Click me", true)) }
-//! );
+//! };
 //!
-//! assert_eq!(&*output, r#"<div><button class="btn btn-primary">Click me</button></div>"#);
+//! assert_eq!(render(template), r#"<div><button class="btn btn-primary">Click me</button></div>"#);
 //! ```
-//!
-//! For components with owned data, use `(&value)` to borrow:
-//!
-//! ```rust
-//! use plait::{Render, component};
-//!
-//! fn greeting(message: String) -> impl Render {
-//!     component! {
-//!         span { (&message) }
-//!     }
-//! }
-//! ```
-//!
-//! For more control, implement the [`Render`] trait directly. See the [`Render`] documentation for details.
 //!
 //! # Safety
 //!
@@ -214,9 +199,9 @@ mod error;
 mod escape;
 mod formatter;
 mod html;
-mod lazy;
 mod pre_escaped;
 mod render;
+mod render_fn;
 
 pub use self::{
     attributes::Attributes,
@@ -224,9 +209,48 @@ pub use self::{
     escape::EscapeMode,
     formatter::HtmlFormatter,
     html::Html,
-    lazy::LazyRender,
     pre_escaped::{DOCTYPE, PreEscaped},
     render::Render,
+    render_fn::RenderFn,
 };
 
-pub use plait_macros::{attrs, component, html, render};
+pub use plait_macros::{attrs, html};
+
+/// Renders a value into an [`Html`] string with HTML escaping.
+///
+/// This is the primary entry point for rendering content to HTML. The value is rendered using [`EscapeMode::Html`],
+/// which escapes HTML special characters (`<`, `>`, `&`, `"`, `'`) to prevent XSS attacks.
+///
+/// Values generated by the [`html!`] macro can also be rendered using this function.
+///
+/// # Example
+///
+/// ```rust
+/// use plait::render;
+///
+/// // User input is automatically escaped
+/// let user_input = "<script>alert('xss')</script>";
+/// let html = render(user_input);
+/// assert_eq!(html, "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;");
+///
+/// // Numbers are rendered directly (no escaping needed)
+/// let count = render(42);
+/// assert_eq!(count, "42");
+/// ```
+///
+/// ```rust
+/// use plait::{html, render};
+///
+/// let name = "World";
+/// let template = html! {
+///     p { "Hello, " (name) "!" }
+/// };
+/// let html = render(template);
+/// assert_eq!(html, "<p>Hello, World!</p>");
+/// ```
+pub fn render(value: impl Render) -> Html {
+    let mut output = Html::new();
+    let mut f = HtmlFormatter::new(&mut output);
+    value.render_html(&mut f);
+    output
+}

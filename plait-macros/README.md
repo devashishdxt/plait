@@ -2,11 +2,11 @@
 
 Procedural macros for the `plait` HTML templating library.
 
-This crate provides three macros for generating HTML:
+This crate provides two macros for generating HTML:
 
-- `html!` - Creates an `Html` value from a template
-- `render!` - Renders content to an existing `HtmlFormatter`
-- `attrs!` - Creates an `Attributes` collection
+- `html!` - Creates a `RenderFn` from a declarative template which can be rendered to an `Html` string using the
+  `render` function.
+- `attrs!` - Creates an `Attributes` collection.
 
 These macros are re-exported by the main `plait` crate and should typically be used from there rather than
 directly from this crate.

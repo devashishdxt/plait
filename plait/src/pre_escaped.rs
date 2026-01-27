@@ -1,8 +1,6 @@
 use core::{fmt, ops::Deref};
 
 /// The HTML5 doctype declaration: `<!DOCTYPE html>`.
-///
-/// Use this constant at the beginning of your HTML documents.
 pub const DOCTYPE: PreEscaped<'static> = PreEscaped("<!DOCTYPE html>");
 
 /// A borrowed string slice that is known to contain safe, pre-escaped HTML.
@@ -18,17 +16,14 @@ pub const DOCTYPE: PreEscaped<'static> = PreEscaped("<!DOCTYPE html>");
 /// # Example
 ///
 /// ```rust
-/// use plait::PreEscaped;
+/// use plait::{PreEscaped, render};
 ///
 /// // Include pre-escaped HTML content
 /// let bold = PreEscaped("<strong>Important</strong>");
+///
+/// assert_eq!(render(bold), "<strong>Important</strong>");
 /// ```
-///
-/// # See Also
-///
-/// - [`Html`] - An owned version for dynamically constructed HTML
-///
-/// [`Html`]: crate::Html
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PreEscaped<'a>(pub &'a str);
 
 impl Deref for PreEscaped<'_> {
@@ -39,20 +34,8 @@ impl Deref for PreEscaped<'_> {
     }
 }
 
-impl AsRef<str> for PreEscaped<'_> {
-    fn as_ref(&self) -> &str {
-        self.0
-    }
-}
-
-impl AsRef<[u8]> for PreEscaped<'_> {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
 impl fmt::Display for PreEscaped<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        f.write_str(self.0)
     }
 }
