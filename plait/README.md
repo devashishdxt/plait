@@ -1,9 +1,9 @@
 # plait
 
-A fast, type-safe HTML templating library for Rust.
+A lightweight, type-safe HTML templating library for Rust.
 
-Plait provides compile-time HTML generation with a concise, Rust-native syntax. Templates are checked at compile
-time and generate efficient code with minimal runtime overhead.
+Plait provides a macro-based DSL for writing HTML directly in Rust code with compile-time validation and automatic
+escaping. It's designed for building server-side rendered HTML with minimal runtime overhead.
 
 ## Quick Start
 
@@ -11,190 +11,186 @@ time and generate efficient code with minimal runtime overhead.
 use plait::{html, render};
 
 let name = "World";
-let template = html! {
-    div class="greeting" {
+let html = render(html! {
+    div(class: "greeting") {
         h1 { "Hello, " (name) "!" }
     }
-};
+});
 
-let html = render(template);
-assert_eq!(html, r#"<div class="greeting"><h1>Hello, World!</h1></div>"#);
+assert_eq!(html, "<div class=\"greeting\"><h1>Hello, World!</h1></div>");
 ```
 
-## Macros
+## The `html!` Macro
 
-Plait provides two macros:
-
-- `html!` - Creates a `RenderFn` from a template, which can be rendered using `render()`
-- `attrs!` - Creates an `Attributes` collection for use in templates
-
-## Template Syntax
-
-### Elements
-
-Elements are written as `name { children }` for normal elements or `name;` for void elements:
+The `html!` macro provides a concise syntax for writing HTML:
 
 ```rust
 use plait::{html, render};
 
-let template = html! {
-    div {
-        p { "A paragraph" }
+let html = render(html! {
+    // Elements with attributes
+    div(id: "main", class: "container") {
+        // Nested elements
+        h1 { "Title" }
+
+        // Self-closing void elements
         br;
-        input type="text" name="field";
-    }
-};
+        input(type: "text", name: "query");
 
-assert_eq!(render(template), r#"<div><p>A paragraph</p><br><input type="text" name="field"></div>"#);
+        // Text content and expressions (escaped by default)
+        p { "Static text and " (2 + 2) " dynamic values" }
+    }
+});
 ```
 
-### Attributes
+### Expressions
 
-Attributes support several value types:
-
-```rust
-use plait::{html, render};
-
-let class_name = "container";
-let maybe_id: Option<&str> = Some("main");
-let is_disabled = true;
-
-let template = html! {
-    div
-        class="literal"              // Literal string
-        data-value=(class_name)      // Dynamic expression
-        id=[maybe_id]                // Optional (renders if Some)
-        disabled?[is_disabled]       // Boolean (renders if true)
-    {
-        "content"
-    }
-};
-
-assert_eq!(render(template), r#"<div class="literal" data-value="container" id="main" disabled>content</div>"#);
-```
-
-### Dynamic Content
-
-Expressions in parentheses are escaped by default:
+Use parentheses to embed expressions. Content is automatically HTML-escaped:
 
 ```rust
 use plait::{html, render};
 
 let user_input = "<script>alert('xss')</script>";
+let html = render(html! { p { (user_input) } });
 
-let template = html! {
-    div { (user_input) }
-};
-
-// Content is safely escaped
-assert!(!render(template).contains("<script>"));
+assert_eq!(html, "<p>&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;</p>");
 ```
 
-Use `: raw` to include pre-escaped content:
+For raw, unescaped content, prefix with `#`:
 
 ```rust
 use plait::{html, render};
 
 let trusted_html = "<strong>Bold</strong>";
+let html = render(html! { div { #(trusted_html) } });
 
-let template = html! {
-    div { (trusted_html : raw) }
-};
+assert_eq!(html, "<div><strong>Bold</strong></div>");
+```
 
-assert!(render(template).contains("<strong>"));
+### Attributes
+
+Attributes support several forms:
+
+```rust
+use plait::{html, render};
+
+let class = Some("active");
+let disabled = true;
+
+let html = render(html! {
+    // Boolean attribute (no value)
+    button(checked) { "Checked" }
+
+    // Optional attribute with `?:` - included when Some or true
+    div(class?: class) { "Has class" }
+    button(disabled?: disabled) { "Disabled" }
+
+    // Attribute names with underscores become hyphens
+    div(hx_target: "body") {}  // renders as hx-target="body"
+
+    // String attribute names for special characters
+    div("@click": "handler()") {}
+});
 ```
 
 ### Control Flow
 
-#### Conditionals
+Standard Rust control flow works naturally:
 
 ```rust
 use plait::{html, render};
 
 let show = true;
-let value: Option<&str> = Some("hello");
+let items = vec!["a", "b", "c"];
+let variant = "primary";
+let user = Some("Alice");
 
-let template = html! {
-    div {
-        @if show {
-            span { "Visible" }
-        }
-
-        @if let Some(v) = value {
-            span { (v) }
-        } @else {
-            span { "No value" }
-        }
+let html = render(html! {
+    // Conditionals
+    if show {
+        p { "Visible" }
+    } else {
+        p { "Hidden" }
     }
-};
 
-assert_eq!(render(template), r#"<div><span>Visible</span><span>hello</span></div>"#);
-```
+    // if let with else
+    if let Some(name) = user {
+        p { "Welcome, " (name) "!" }
+    } else {
+        p { "Please log in" }
+    }
 
-#### Loops
-
-```rust
-use plait::{html, render};
-
-let items = vec!["one", "two", "three"];
-
-let template = html! {
+    // Loops
     ul {
-        @for item in &items {
+        for item in &items {
             li { (item) }
         }
     }
-};
 
-assert_eq!(render(template), r#"<ul><li>one</li><li>two</li><li>three</li></ul>"#);
+    // Pattern matching
+    match variant {
+        "primary" => button(class: "btn-primary") { "Primary" },
+        "secondary" => button(class: "btn-secondary") { "Secondary" },
+        _ => button { "Default" }
+    }
+});
 ```
 
-#### Match Expressions
+## Components
+
+Create reusable components using the `component!` macro:
+
+```rust
+use plait::{component, html, render};
+
+component! {
+    fn Button<'a>(class: &'a str) {
+        button(class: format_args!("btn {class}"), #attrs) {
+            #children
+        }
+    }
+}
+
+let html = render(html! {
+    // Component props before `;`, HTML attributes after
+    @Button(class: "primary"; id: "submit-btn", disabled?: false) {
+        "Click me"
+    }
+});
+
+assert_eq!(html, "<button class=\"btn primary\" id=\"submit-btn\">Click me</button>");
+```
+
+Inside components, `#attrs` spreads additional HTML attributes and `#children` renders the component's children.
+
+## URL Safety
+
+URL attributes (`href`, `src`, `action`, etc.) are automatically validated. Dangerous schemes like `javascript:`
+are stripped:
 
 ```rust
 use plait::{html, render};
 
-enum Status { Active, Inactive }
-let status = Status::Active;
+let html = render(html! {
+    a(href: "javascript:alert('xss')") { "Click" }
+});
 
-let template = html! {
-    span {
-        @match status {
-            Status::Active => "Online",
-            Status::Inactive => "Offline",
-        }
-    }
-};
-
-assert_eq!(render(template), r#"<span>Online</span>"#);
+assert_eq!(html, "<a>Click</a>");  // href removed
 ```
 
-## Custom Components
+Use `#(...)` for raw URLs when you trust the source.
 
-Create reusable components as functions that return `impl Render`:
+## Performance
+
+For better performance when output size is predictable, use `render_with_capacity` to pre-allocate the buffer:
 
 ```rust
-use plait::{Render, html, render};
+use plait::{html, render_with_capacity};
 
-fn button(label: &str, primary: bool) -> impl Render {
-    let class = if primary { "btn btn-primary" } else { "btn" };
-    html! {
-        button class=(class) { (label) }
-    }
-}
-
-// Use in templates
-let template = html! {
-    div { (button("Click me", true)) }
-};
-
-assert_eq!(render(template), r#"<div><button class="btn btn-primary">Click me</button></div>"#);
+let html = render_with_capacity(4096, html! {
+    div { "Content" }
+});
 ```
-
-## Safety
-
-Plait automatically escapes dynamic content to prevent XSS vulnerabilities. The `Html` and `PreEscaped` types
-represent content that is already safe and will not be escaped again.
 
 ## License
 

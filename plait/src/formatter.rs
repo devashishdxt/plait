@@ -1,4 +1,143 @@
-use crate::{Attributes, Error, EscapeMode, Html, Render};
+use core::fmt::{self, Display, Write};
+
+use crate::{
+    Html, MaybeAttr,
+    url::{is_url_attribute, is_url_safe},
+};
+
+/// A formatter for building HTML content safely and efficiently.
+///
+/// `HtmlFormatter` provides methods for constructing HTML by writing tags, attributes, and content to an underlying
+/// [`Html`](crate::Html) buffer. It handles HTML escaping automatically when using the `*_escaped` methods, helping
+/// prevent XSS vulnerabilities.
+///
+/// # Note
+///
+/// This type should not be used directly. Instead, use the [`html!`](crate::html!) macro with
+/// [`render`](crate::render) or [`render_with_capacity`](crate::render_with_capacity) functions.
+///
+/// # Usage
+///
+/// ```rust
+/// use plait::{Html, HtmlFormatter};
+///
+/// let mut html = Html::new();
+/// let mut f = HtmlFormatter::new(&mut html);
+///
+/// f.open_tag("div");
+/// f.write_attribute_escaped("class", "container");
+/// f.close_start_tag();
+/// f.write_html_escaped("<script>alert('xss')</script>");
+/// f.close_tag("div");
+///
+/// assert_eq!(html, "<div class=\"container\">&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;</div>");
+/// ```
+pub struct HtmlFormatter<'a>(&'a mut Html);
+
+impl<'a> HtmlFormatter<'a> {
+    /// Create a new `HtmlFormatter` for the given `Html` string.
+    pub fn new(html: &'a mut Html) -> Self {
+        HtmlFormatter(html)
+    }
+
+    /// Returns a raw writer for current `HtmlFormatter`.
+    fn raw_writer(&mut self) -> &mut String {
+        self.0.inner_mut()
+    }
+
+    /// Returns a writer that escapes HTML special characters for current `HtmlFormatter`.
+    fn html_escaped_writer(&mut self) -> HtmlEscapedWriter<'_> {
+        HtmlEscapedWriter(self.0)
+    }
+
+    /// Opens a tag with the given name.
+    pub fn open_tag(&mut self, tag_name: &str) {
+        write!(self.raw_writer(), "<{tag_name}").unwrap();
+    }
+
+    /// Closes start tag (should be called after writing attributes).
+    pub fn close_start_tag(&mut self) {
+        self.raw_writer().push('>');
+    }
+
+    /// Closes a tag with the given name.
+    pub fn close_tag(&mut self, tag_name: &str) {
+        if !is_void_element(tag_name) {
+            write!(self.raw_writer(), "</{tag_name}>").unwrap();
+        }
+    }
+
+    /// Write HTML content to the formatter without escaping any special HTML characters.
+    pub fn write_raw(&mut self, raw: impl Display) {
+        write!(self.raw_writer(), "{raw}").unwrap()
+    }
+
+    /// Write HTML content to the formatter, escaping any special HTML characters.
+    pub fn write_html_escaped(&mut self, html: impl Display) {
+        write!(self.html_escaped_writer(), "{html}").unwrap()
+    }
+
+    /// Write an attribute to the formatter without escaping any special HTML characters.
+    pub fn write_attribute_raw(&mut self, name: &str, value: impl Display) {
+        write!(self.raw_writer(), " {name}=\"").unwrap();
+        write!(self.raw_writer(), "{value}").unwrap();
+        self.raw_writer().push('"');
+    }
+
+    /// Write an attribute to the formatter, escaping any special HTML characters in value.
+    pub fn write_attribute_escaped(&mut self, name: &str, value: impl Display) {
+        write!(self.raw_writer(), " {name}=\"").unwrap();
+        write!(self.html_escaped_writer(), "{value}").unwrap();
+        self.raw_writer().push('"');
+    }
+
+    /// Write an optional or boolean attribute to the formatter without escaping any special HTML characters.
+    pub fn write_maybe_attribute_raw(&mut self, name: &str, value: impl MaybeAttr) {
+        value.write_raw(self, name);
+    }
+
+    /// Write an optional or boolean attribute to the formatter, escaping any special HTML characters in value.
+    pub fn write_maybe_attribute_escaped(&mut self, name: &str, value: impl MaybeAttr) {
+        value.write_escaped(self, name);
+    }
+
+    /// Write an optional attribute to the formatter without escaping any special HTML characters.
+    pub fn write_optional_attribute_raw(&mut self, name: &str, value: Option<impl Display>) {
+        if let Some(value) = value {
+            self.write_attribute_raw(name, value);
+        }
+    }
+
+    /// Write an optional attribute to the formatter, escaping any special HTML characters in value.
+    pub fn write_optional_attribute_escaped(&mut self, name: &str, value: Option<impl Display>) {
+        if let Some(value) = value {
+            self.write_attribute_escaped(name, value);
+        }
+    }
+
+    /// Write an URL attribute to the formatter, escaping any special HTML characters in value.
+    pub fn write_url_attribute_escaped(&mut self, name: &str, value: &str) {
+        if is_url_attribute(name) && is_url_safe(value) {
+            write!(self.raw_writer(), " {name}=\"").unwrap();
+            write!(self.html_escaped_writer(), "{value}").unwrap();
+            self.raw_writer().push('"');
+        }
+    }
+
+    /// Write an optional URL attribute to the formatter, escaping any special HTML characters in value.
+    pub fn write_optional_url_attribute_escaped(&mut self, name: &str, value: Option<&str>) {
+        if let Some(value) = value {
+            self.write_url_attribute_escaped(name, value);
+        }
+    }
+
+    /// Write a boolean attribute to the formatter.
+    pub fn write_boolean_attribute(&mut self, name: &str, value: bool) {
+        if value {
+            write!(self.raw_writer(), " {name}").unwrap()
+        }
+    }
+}
 
 /// Returns true if the given element name is a void element.
 /// Expects the name to be in ASCII lowercase.
@@ -22,256 +161,12 @@ fn is_void_element(name: &str) -> bool {
     )
 }
 
-/// The current state of the formatter state machine.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-enum FormatterState {
-    /// No element is currently being written. Ready to start a new element or write raw content.
-    #[default]
-    Idle,
+/// A writer that escapes HTML special characters.
+struct HtmlEscapedWriter<'a>(&'a mut Html);
 
-    /// An opening tag has started (e.g., `<div`). Attributes can be added. The `>` has not been written yet.
-    TagOpened,
-
-    /// The opening tag is closed (`>`). Content or child elements can be written.
-    InContent,
-}
-
-/// An entry in the element stack, tracking the element name and whether it's a void element.
-struct ElementEntry {
-    name: &'static str,
-    is_void: bool,
-    attributes: Attributes,
-}
-
-/// A state machine for building well-formed HTML output.
-///
-/// `HtmlFormatter` provides a structured API for generating HTML elements with proper nesting, attribute handling,
-/// and content escaping. It maintains an internal stack to track open elements and ensures that void elements (like
-/// `<br>`, `<img>`) are handled correctly.
-///
-/// # State Machine
-///
-/// The formatter operates as a state machine with three states:
-///
-/// - **Idle**: Ready to start a new element or write raw content
-/// - **TagOpened**: An opening tag has started (e.g., `<div`); attributes can be added
-/// - **InContent**: The tag is closed (`>`); content or child elements can be written
-///
-/// # Example
-///
-/// ```rust
-/// use plait::{Html, HtmlFormatter};
-///
-/// let mut output = Html::new();
-/// let mut f = HtmlFormatter::new(&mut output);
-///
-/// f.start_element("div");
-/// f.write_attribute("class", "container", None).unwrap();
-/// f.write_content("Hello, world!", None).unwrap();
-/// f.end_element().unwrap();
-///
-/// assert_eq!(output, "<div class=\"container\">Hello, world!</div>");
-/// ```
-pub struct HtmlFormatter<'a> {
-    output: &'a mut Html,
-    element_stack: Vec<ElementEntry>,
-    state: FormatterState,
-}
-
-impl<'a> HtmlFormatter<'a> {
-    /// Creates a new `HtmlFormatter` with the given output.
-    pub fn new(output: &'a mut Html) -> Self {
-        HtmlFormatter {
-            output,
-            element_stack: Vec::new(),
-            state: FormatterState::Idle,
-        }
-    }
-
-    /// Closes the current opening tag if one is pending.
-    fn close_pending_tag(&mut self) {
-        // This writes the `>` character to transition from `TagOpened` to `InContent`.
-        if self.state == FormatterState::TagOpened && !self.element_stack.is_empty() {
-            let attributes = &self.element_stack.last().unwrap().attributes;
-
-            if !attributes.is_empty() {
-                self.output.inner_mut().push(' ');
-                attributes.write_to(self.output);
-            }
-
-            self.output.inner_mut().push('>');
-            self.state = FormatterState::InContent;
-        }
-    }
-
-    /// Returns a mutable reference to the underlying [`Html`] output.
-    ///
-    /// This provides direct access to the output buffer for advanced use cases.
-    /// Use with caution as writing directly bypasses the formatter's state machine.
-    pub(crate) fn output(&mut self) -> &mut Html {
-        self.output
-    }
-
-    /// Starts a new HTML element.
-    ///
-    /// Note: `name` should be in ASCII lowercase for correct void element detection.
-    pub fn start_element(&mut self, name: &'static str) {
-        // This writes `<name` to the output and transitions to the `TagOpened` state. If currently in `TagOpened`
-        // state, the pending tag is closed first.
-
-        // Close any pending tag first
-        self.close_pending_tag();
-
-        // Write the opening tag start
-        self.output.inner_mut().push('<');
-        self.output.inner_mut().push_str(name);
-
-        // Push to element stack
-        self.element_stack.push(ElementEntry {
-            name,
-            is_void: is_void_element(name),
-            attributes: Attributes::new(),
-        });
-
-        self.state = FormatterState::TagOpened;
-    }
-
-    /// Writes an attribute to the current element.
-    pub fn write_attribute(
-        &mut self,
-        name: &'static str,
-        value: impl Render,
-        escape_mode: Option<EscapeMode>,
-    ) -> Result<(), Error> {
-        // This can only be called when in the `TagOpened` state (after `start_element` but before any content or
-        // `end_element`). Returns `Error::AttributeOutsideTag` if not in `TagOpened` state.
-
-        if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
-            return Err(Error::AttributeOutsideTag);
-        }
-
-        let element = self.element_stack.last_mut().unwrap();
-        element.attributes.add(name, value, escape_mode);
-
-        Ok(())
-    }
-
-    /// Writes an optional attribute to the current element.
-    pub fn write_optional_attribute(
-        &mut self,
-        name: &'static str,
-        value: Option<impl Render>,
-        escape_mode: Option<EscapeMode>,
-    ) -> Result<(), Error> {
-        // Optional attributes are only written when the value is `Some(_)`. Returns `Error::AttributeOutsideTag` if
-        // not in `TagOpened` state.
-
-        if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
-            return Err(Error::AttributeOutsideTag);
-        }
-
-        let element = self.element_stack.last_mut().unwrap();
-        element.attributes.add_optional(name, value, escape_mode);
-
-        Ok(())
-    }
-
-    /// Writes a boolean attribute to the current element.
-    pub fn write_boolean_attribute(
-        &mut self,
-        name: &'static str,
-        value: bool,
-    ) -> Result<(), Error> {
-        // Boolean attributes have no value (e.g., `disabled`, `checked`). Returns `Error::AttributeOutsideTag` if not
-        // in `TagOpened` state.
-
-        if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
-            return Err(Error::AttributeOutsideTag);
-        }
-
-        let element = self.element_stack.last_mut().unwrap();
-        element.attributes.add_boolean(name, value);
-
-        Ok(())
-    }
-
-    /// Spreads attributes to the current element.
-    pub fn spread_attributes(&mut self, attributes: Attributes) -> Result<(), Error> {
-        // Spread attributes are a way to apply multiple attributes to an element at once.
-
-        if self.state != FormatterState::TagOpened || self.element_stack.is_empty() {
-            return Err(Error::AttributeOutsideTag);
-        }
-
-        let element = self.element_stack.last_mut().unwrap();
-        element.attributes.merge(attributes);
-
-        Ok(())
-    }
-
-    /// Writes content inside the current element.
-    pub fn write_content(
-        &mut self,
-        content: impl Render,
-        escape_mode: Option<EscapeMode>,
-    ) -> Result<(), Error> {
-        // If in `TagOpened` state, the tag is closed first by writing `>`. The content is rendered according to the
-        // `escape_mode` and current element context. Returns `Error::ContentInVoidElement` if the current element is a
-        // void element.
-
-        // Check if we're trying to write content to a void element
-        if let Some(entry) = self.element_stack.last()
-            && entry.is_void
-            && self.state == FormatterState::TagOpened
-        {
-            return Err(Error::ContentInVoidElement);
-        }
-
-        // Close pending tag if needed
-        self.close_pending_tag();
-
-        // Determine escape mode based on parent element
-        let element_name = self.element_stack.last().map(|e| e.name);
-        let resolved_escape_mode = EscapeMode::resolve_for_element(element_name, escape_mode);
-
-        content.render_to(self, resolved_escape_mode);
-
-        Ok(())
-    }
-
-    /// Ends the current element.
-    pub fn end_element(&mut self) -> Result<(), Error> {
-        // For void elements in `TagOpened` state, writes `>`. For normal elements, writes `</name>`. Returns
-        // `Error::NoElementToClose` if no element is currently open.
-
-        let entry = self.element_stack.pop().ok_or(Error::NoElementToClose)?;
-
-        if self.state == FormatterState::TagOpened {
-            if !entry.attributes.is_empty() {
-                self.output.inner_mut().push(' ');
-                entry.attributes.write_to(self.output);
-            }
-
-            self.output.inner_mut().push('>');
-        }
-
-        // Note: void elements shouldn't have closing tags in HTML5
-        if !entry.is_void {
-            // Normal elements: close pending tag and write closing tag
-            self.close_pending_tag();
-            self.output.inner_mut().push_str("</");
-            self.output.inner_mut().push_str(entry.name);
-            self.output.inner_mut().push('>');
-        }
-
-        // Update state based on whether there are more elements on the stack
-        self.state = if self.element_stack.is_empty() {
-            FormatterState::Idle
-        } else {
-            FormatterState::InContent
-        };
-
-        Ok(())
+impl Write for HtmlEscapedWriter<'_> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        hescape::escape_to(self.0.inner_mut(), s)
     }
 }
 
@@ -280,395 +175,164 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_simple_string() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
+    fn test_html_formatter_open_tag() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
 
-        f.write_content("Hello", None).unwrap();
+        f.open_tag("div");
 
-        assert_eq!(output, "Hello");
+        assert_eq!(html, "<div");
     }
 
     #[test]
-    fn test_simple_element() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
+    fn test_html_formatter_close_start_tag() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
 
-        f.start_element("div");
-        f.write_content("Hello", None).unwrap();
-        f.end_element().unwrap();
+        f.close_start_tag();
 
-        assert_eq!(output, "<div>Hello</div>");
+        assert_eq!(html, ">");
     }
 
     #[test]
-    fn test_element_with_attributes() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
+    fn test_html_formatter_close_tag() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
 
-        f.start_element("div");
-        f.write_attribute("class", "container", None).unwrap();
-        f.write_attribute("id", "main", None).unwrap();
-        f.write_content("Content", None).unwrap();
-        f.end_element().unwrap();
+        f.close_tag("div");
+        f.close_tag("br"); // Not written (void element)
 
-        assert_eq!(output, "<div class=\"container\" id=\"main\">Content</div>");
+        assert_eq!(html, "</div>");
     }
 
     #[test]
-    fn test_nested_elements() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
+    fn test_html_formatter_write_raw() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
 
-        f.start_element("div");
-        f.start_element("span");
-        f.write_content("Nested", None).unwrap();
-        f.end_element().unwrap();
-        f.end_element().unwrap();
+        f.write_raw("<div>Hello World!</div>");
 
-        assert_eq!(output, "<div><span>Nested</span></div>");
+        assert_eq!(html, "<div>Hello World!</div>");
     }
 
     #[test]
-    fn test_void_element() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
+    fn test_html_formatter_write_html_escaped() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
 
-        f.start_element("div");
-        f.start_element("br");
-        f.end_element().unwrap();
-        f.start_element("input");
-        f.write_attribute("type", "text", None).unwrap();
-        f.end_element().unwrap();
-        f.end_element().unwrap();
+        f.write_html_escaped("<div>Hello World!</div>");
 
-        assert_eq!(output, "<div><br><input type=\"text\"></div>");
+        assert_eq!(html, "&lt;div&gt;Hello World!&lt;/div&gt;");
     }
 
     #[test]
-    fn test_content_escaping() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
+    fn test_html_formatter_write_attribute_raw() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
 
-        f.start_element("div");
-        f.write_content("<script>alert('xss')</script>", None)
-            .unwrap();
-        f.end_element().unwrap();
+        f.write_attribute_raw("class", "<strong>Hello</strong>");
+
+        assert_eq!(html, " class=\"<strong>Hello</strong>\"");
+    }
+
+    #[test]
+    fn test_html_formatter_write_attribute_escaped() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
+
+        f.write_attribute_escaped("class", "<strong>\"Hello\"</strong>");
 
         assert_eq!(
-            output,
-            "<div>&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;</div>"
+            html,
+            " class=\"&lt;strong&gt;&quot;Hello&quot;&lt;/strong&gt;\""
         );
     }
 
     #[test]
-    fn test_attribute_escaping() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
+    fn test_html_formatter_write_maybe_attribute_raw() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
 
-        f.start_element("div");
-        f.write_attribute("data-value", "a\"b<c>d", None).unwrap();
-        f.end_element().unwrap();
+        f.write_maybe_attribute_raw("class", Some("<strong>Hello</strong>"));
+        f.write_maybe_attribute_raw("id", None::<&str>);
+        f.write_maybe_attribute_raw("checked", true);
+        f.write_maybe_attribute_raw("disabled", false);
 
-        assert_eq!(output, "<div data-value=\"a&quot;b&lt;c&gt;d\"></div>");
+        assert_eq!(html, " class=\"<strong>Hello</strong>\" checked");
     }
 
     #[test]
-    fn test_raw_content() {
-        use crate::PreEscaped;
-
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("div");
-        f.write_content(PreEscaped("<b>Bold</b>"), None).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div><b>Bold</b></div>");
-    }
-
-    #[test]
-    fn test_boolean_attribute_true() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("input");
-        f.write_attribute("type", "checkbox", None).unwrap();
-        f.write_boolean_attribute("checked", true).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<input type=\"checkbox\" checked>");
-    }
-
-    #[test]
-    fn test_boolean_attribute_false() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("input");
-        f.write_attribute("type", "checkbox", None).unwrap();
-        f.write_boolean_attribute("checked", false).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<input type=\"checkbox\">");
-    }
-
-    #[test]
-    fn test_attribute_outside_tag_error() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("div");
-        f.write_content("Content", None).unwrap();
-
-        // Now in InContent state, attribute should fail
-        let result = f.write_attribute("class", "test", None);
-        assert!(matches!(result, Err(Error::AttributeOutsideTag)));
-    }
-
-    #[test]
-    fn test_no_element_to_close_error() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let result = f.end_element();
-        assert!(matches!(result, Err(Error::NoElementToClose)));
-    }
-
-    #[test]
-    fn test_content_in_void_element_error() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("br");
-        let result = f.write_content("Content", None);
-        assert!(matches!(result, Err(Error::ContentInVoidElement)));
-    }
-
-    #[test]
-    fn test_optional_attribute_with_some() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("div");
-        f.write_optional_attribute("class", Some("container"), None)
-            .unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div class=\"container\"></div>");
-    }
-
-    #[test]
-    fn test_optional_attribute_with_none() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("div");
-        f.write_optional_attribute("class", None::<&str>, None)
-            .unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div></div>");
-    }
-
-    #[test]
-    fn test_optional_attribute_mixed() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("div");
-        f.write_optional_attribute("id", Some("main"), None)
-            .unwrap();
-        f.write_optional_attribute("class", None::<&str>, None)
-            .unwrap();
-        f.write_optional_attribute("data-value", Some("test"), None)
-            .unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div id=\"main\" data-value=\"test\"></div>");
-    }
-
-    #[test]
-    fn test_optional_attribute_outside_tag_error() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("div");
-        f.write_content("Content", None).unwrap();
-
-        // Now in InContent state, optional attribute should fail
-        let result = f.write_optional_attribute("class", Some("test"), None);
-        assert!(matches!(result, Err(Error::AttributeOutsideTag)));
-    }
-
-    #[test]
-    fn test_optional_attribute_escaping() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        f.start_element("div");
-        f.write_optional_attribute("data-value", Some("a\"b<c>d"), None)
-            .unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div data-value=\"a&quot;b&lt;c&gt;d\"></div>");
-    }
-
-    #[test]
-    fn test_spread_attributes_basic() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let mut attrs = Attributes::new();
-        attrs.add("id", "main", None);
-        attrs.add("class", "container", None);
-
-        f.start_element("div");
-        f.spread_attributes(attrs).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div class=\"container\" id=\"main\"></div>");
-    }
-
-    #[test]
-    fn test_spread_attributes_empty() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let attrs = Attributes::new();
-
-        f.start_element("div");
-        f.spread_attributes(attrs).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div></div>");
-    }
-
-    #[test]
-    fn test_spread_attributes_with_existing_attributes() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let mut attrs = Attributes::new();
-        attrs.add("data-value", "spread", None);
-
-        f.start_element("div");
-        f.write_attribute("id", "main", None).unwrap();
-        f.spread_attributes(attrs).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div id=\"main\" data-value=\"spread\"></div>");
-    }
-
-    #[test]
-    fn test_spread_attributes_class_merging() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let mut attrs = Attributes::new();
-        attrs.add("class", "spread-class", None);
-
-        f.start_element("div");
-        f.write_attribute("class", "existing-class", None).unwrap();
-        f.spread_attributes(attrs).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div class=\"existing-class spread-class\"></div>");
-    }
-
-    #[test]
-    fn test_spread_attributes_with_boolean() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let mut attrs = Attributes::new();
-        attrs.add("type", "checkbox", None);
-        attrs.add_boolean("checked", true);
-
-        f.start_element("input");
-        f.spread_attributes(attrs).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<input type=\"checkbox\" checked>");
-    }
-
-    #[test]
-    fn test_spread_attributes_overwrites_non_class() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let mut attrs = Attributes::new();
-        attrs.add("id", "spread-id", None);
-
-        f.start_element("div");
-        f.write_attribute("id", "original-id", None).unwrap();
-        f.spread_attributes(attrs).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div id=\"spread-id\"></div>");
-    }
-
-    #[test]
-    fn test_spread_attributes_outside_tag_error_in_content() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let attrs = Attributes::new();
-
-        f.start_element("div");
-        f.write_content("Content", None).unwrap();
-
-        // Now in InContent state, spread should fail
-        let result = f.spread_attributes(attrs);
-        assert!(matches!(result, Err(Error::AttributeOutsideTag)));
-    }
-
-    #[test]
-    fn test_spread_attributes_outside_tag_error_idle() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let attrs = Attributes::new();
-
-        // In Idle state (no element started), spread should fail
-        let result = f.spread_attributes(attrs);
-        assert!(matches!(result, Err(Error::AttributeOutsideTag)));
-    }
-
-    #[test]
-    fn test_spread_attributes_multiple_spreads() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let mut attrs1 = Attributes::new();
-        attrs1.add("id", "main", None);
-
-        let mut attrs2 = Attributes::new();
-        attrs2.add("data-value", "test", None);
-
-        f.start_element("div");
-        f.spread_attributes(attrs1).unwrap();
-        f.spread_attributes(attrs2).unwrap();
-        f.end_element().unwrap();
-
-        assert_eq!(output, "<div id=\"main\" data-value=\"test\"></div>");
-    }
-
-    #[test]
-    fn test_spread_attributes_with_escaped_values() {
-        let mut output = Html::new();
-        let mut f = HtmlFormatter::new(&mut output);
-
-        let mut attrs = Attributes::new();
-        attrs.add("data-value", "<script>alert('xss')</script>", None);
-
-        f.start_element("div");
-        f.spread_attributes(attrs).unwrap();
-        f.end_element().unwrap();
+    fn test_html_formatter_write_maybe_attribute_escaped() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
+
+        f.write_maybe_attribute_escaped("class", Some("<strong>Hello</strong>"));
+        f.write_maybe_attribute_escaped("id", None::<&str>);
+        f.write_maybe_attribute_escaped("checked", true);
+        f.write_maybe_attribute_escaped("disabled", false);
 
         assert_eq!(
-            output,
-            "<div data-value=\"&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;\"></div>"
+            html,
+            " class=\"&lt;strong&gt;Hello&lt;/strong&gt;\" checked"
         );
+    }
+
+    #[test]
+    fn test_html_formatter_write_optional_attribute_raw() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
+
+        f.write_optional_attribute_raw("class", Some("<strong>Hello</strong>"));
+        f.write_optional_attribute_raw("id", None::<&str>);
+
+        assert_eq!(html, " class=\"<strong>Hello</strong>\"");
+    }
+
+    #[test]
+    fn test_html_formatter_write_optional_attribute_escaped() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
+
+        f.write_optional_attribute_escaped("class", Some("<strong>\"Hello\"</strong>"));
+        f.write_optional_attribute_escaped("id", None::<&str>);
+
+        assert_eq!(
+            html,
+            " class=\"&lt;strong&gt;&quot;Hello&quot;&lt;/strong&gt;\""
+        );
+    }
+
+    #[test]
+    fn test_html_formatter_write_url_attribute_escaped() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
+
+        f.write_url_attribute_escaped("href", "https://example.com?q=\"hello\"");
+        f.write_url_attribute_escaped("class", "btn"); // Not written (not a url attribute)
+        f.write_url_attribute_escaped("src", "javascript:alert('XSS')"); // Not written (unsafe url)
+
+        assert_eq!(html, " href=\"https://example.com?q=&quot;hello&quot;\"");
+    }
+
+    #[test]
+    fn test_html_formatter_write_optional_url_attribute_escaped() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
+
+        f.write_optional_url_attribute_escaped("href", Some("https://example.com?q=\"hello\""));
+        f.write_optional_url_attribute_escaped("src", None::<&str>);
+
+        assert_eq!(html, " href=\"https://example.com?q=&quot;hello&quot;\"");
+    }
+
+    #[test]
+    fn test_html_formatter_write_boolean_attribute() {
+        let mut html = Html::new();
+        let mut f = HtmlFormatter::new(&mut html);
+
+        f.write_boolean_attribute("checked", true);
+        f.write_boolean_attribute("active", false);
+
+        assert_eq!(html, " checked");
     }
 }

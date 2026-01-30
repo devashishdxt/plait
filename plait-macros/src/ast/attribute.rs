@@ -1,226 +1,130 @@
-mod attribute_name;
-mod attribute_value;
-
-pub use self::{attribute_name::AttributeName, attribute_value::AttributeValue};
-
+use convert_case::{Boundary, Case, Casing};
 use syn::{
-    Expr, parenthesized,
+    Expr, Ident, LitStr,
+    ext::IdentExt,
+    parenthesized,
     parse::{Parse, ParseStream},
-    token::{Dot, Eq, Paren, Question},
+    token::{Colon, Comma, Paren, Pound, Question},
 };
 
-/// An HTML attribute in the template AST.
-///
-/// Attributes can be either name-value pairs with various value types, or spread
-/// patterns that merge in attributes from another collection.
-///
-/// # Syntax
-///
-/// ```text
-/// // Name-value pairs
-/// name="literal"           // Literal string
-/// name=(expr)              // Dynamic expression
-/// name=[optional_expr]     // Optional (renders if Some)
-/// name?[bool_expr]         // Boolean (renders name only if true)
-/// name                     // Boolean (always true)
-///
-/// // Spread pattern
-/// ..(attrs_expr)           // Merge attributes from expression
-/// ```
-#[derive(Debug)]
 pub enum Attribute {
-    /// A name-value pair attribute.
-    ///
-    /// If `value` is `None`, the attribute is rendered as a boolean attribute
-    /// that is always present (e.g., `disabled`).
-    NameValue {
-        /// The attribute name.
-        name: AttributeName,
-        /// The attribute value, or `None` for boolean attributes without a value.
-        value: Option<AttributeValue>,
-    },
+    Spread(Ident),
+    NameValue(NameValueAttribute),
+}
 
-    /// A spread pattern that merges attributes from an expression.
-    ///
-    /// The expression must evaluate to an [`Attributes`](plait::Attributes) value.
-    Spread {
-        /// The expression providing the attributes to spread.
-        expr: Expr,
-    },
+pub struct NameValueAttribute {
+    pub name: LitStr,
+    pub is_url: bool,
+    pub is_maybe: bool,
+    pub value: Option<AttributeValue>,
+}
+
+pub enum AttributeValue {
+    Text(LitStr),
+    RawExpression(Expr),
+    Expression(Expr),
 }
 
 impl Parse for Attribute {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        parse_attribute(input)
+        if input.peek(Pound) {
+            let _ = input.parse::<Pound>()?;
+            let ident = input.parse::<Ident>()?;
+
+            if ident == "attrs" {
+                Ok(Self::Spread(ident))
+            } else {
+                Err(syn::Error::new(
+                    ident.span(),
+                    "Invalid attribute, expected `attrs` after `#`",
+                ))
+            }
+        } else {
+            Ok(Self::NameValue(input.parse()?))
+        }
     }
 }
 
-fn parse_attribute(input: ParseStream<'_>) -> syn::Result<Attribute> {
-    // Check for spread pattern: ..(expr)
-    if input.peek(Dot) && input.peek2(Dot) {
-        let _dot1: Dot = input.parse()?;
-        let _dot2: Dot = input.parse()?;
-
-        if !input.peek(Paren) {
-            return Err(input.error("expected '(expression)' after '..'"));
-        }
-
-        let content;
-        let _: Paren = parenthesized!(content in input);
-        let expr: Expr = content.parse()?;
-
-        return Ok(Attribute::Spread { expr });
-    }
-
-    // Otherwise, parse as name-value pair
-    let name: AttributeName = input.parse()?;
-
-    let value: Option<AttributeValue> = if input.peek(Question) || input.peek(Eq) {
-        Some(input.parse()?)
-    } else {
-        None
-    };
-
-    Ok(Attribute::NameValue { name, value })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn parse(input: &str) -> syn::Result<Attribute> {
-        syn::parse_str(input)
-    }
-
-    // Name-value pair tests
-
-    #[test]
-    fn name_value_literal() {
-        let result = parse(r#"class="container""#).unwrap();
-        match result {
-            Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name.value(), "class");
-                assert!(matches!(value, Some(AttributeValue::Literal { .. })));
-            }
-            _ => panic!("expected NameValue"),
-        }
-    }
-
-    #[test]
-    fn name_value_dynamic() {
-        let result = parse("href=(url)").unwrap();
-        match result {
-            Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name.value(), "href");
-                assert!(matches!(value, Some(AttributeValue::Dynamic { .. })));
-            }
-            _ => panic!("expected NameValue"),
-        }
-    }
-
-    #[test]
-    fn name_value_optional() {
-        let result = parse("alt=[maybe_alt]").unwrap();
-        match result {
-            Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name.value(), "alt");
-                assert!(matches!(value, Some(AttributeValue::Optional { .. })));
-            }
-            _ => panic!("expected NameValue"),
-        }
-    }
-
-    #[test]
-    fn name_value_boolean() {
-        let result = parse("checked?[is_checked]").unwrap();
-        match result {
-            Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name.value(), "checked");
-                assert!(matches!(value, Some(AttributeValue::Boolean { .. })));
-            }
-            _ => panic!("expected NameValue"),
-        }
-    }
-
-    #[test]
-    fn name_value_complex_name() {
-        let result = parse(r#"hx-on:click="handler""#).unwrap();
-        match result {
-            Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name.value(), "hx-on:click");
-                assert!(matches!(value, Some(AttributeValue::Literal { .. })));
-            }
-            _ => panic!("expected NameValue"),
-        }
-    }
-
-    #[test]
-    fn name_value_at_prefixed() {
-        let result = parse("@click=(handle_click)").unwrap();
-        match result {
-            Attribute::NameValue { name, value, .. } => {
-                assert_eq!(name.name.value(), "@click");
-                assert!(matches!(value, Some(AttributeValue::Dynamic { .. })));
-            }
-            _ => panic!("expected NameValue"),
-        }
-    }
-
-    // Spread pattern tests
-
-    #[test]
-    fn spread_simple() {
-        let result = parse("..(attrs)").unwrap();
-        match result {
-            Attribute::Spread { .. } => {}
-            _ => panic!("expected Spread"),
-        }
-    }
-
-    #[test]
-    fn spread_complex_expression() {
-        let result = parse("..(get_attrs())").unwrap();
-        match result {
-            Attribute::Spread { .. } => {}
-            _ => panic!("expected Spread"),
-        }
-    }
-
-    #[test]
-    fn spread_field_access() {
-        let result = parse("..(self.attrs)").unwrap();
-        match result {
-            Attribute::Spread { .. } => {}
-            _ => panic!("expected Spread"),
-        }
-    }
-
-    #[test]
-    fn spread_method_chain() {
-        let result = parse("..(props.extra_attrs())").unwrap();
-        match result {
-            Attribute::Spread { .. } => {}
-            _ => panic!("expected Spread"),
-        }
-    }
-
-    // Error tests
-
-    #[test]
-    fn error_spread_missing_parens() {
-        let result = parse("..attrs");
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
+impl Parse for NameValueAttribute {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let name = if input.peek(LitStr) {
+            input.parse()?
+        } else {
+            let name_ident = input.call(Ident::parse_any)?;
+            let name_string = name_ident
                 .to_string()
-                .contains("expected '(expression)' after '..'")
-        );
-    }
+                .set_boundaries(&[Boundary::Underscore])
+                .to_case(Case::Kebab);
+            LitStr::new(&name_string, name_ident.span())
+        };
 
-    #[test]
-    fn error_empty_input() {
-        let result = parse("");
-        assert!(result.is_err());
+        let is_url = is_url_attribute(&name.value());
+
+        if input.is_empty() || input.peek(Comma) {
+            return Ok(Self {
+                name,
+                is_url,
+                is_maybe: false,
+                value: None,
+            });
+        }
+
+        let is_maybe = input.peek(Question);
+        if is_maybe {
+            let _ = input.parse::<Question>()?;
+        }
+
+        let _ = input.parse::<Colon>()?;
+
+        let value = Some(input.parse()?);
+
+        Ok(Self {
+            name,
+            is_url,
+            is_maybe,
+            value,
+        })
     }
+}
+
+impl Parse for AttributeValue {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(LitStr) {
+            Ok(Self::Text(input.parse()?))
+        } else if input.peek(Pound) {
+            let pound = input.parse::<Pound>()?;
+            if input.peek(Paren) {
+                let content;
+                let _ = parenthesized!(content in input);
+
+                Ok(Self::RawExpression(content.parse()?))
+            } else {
+                Err(syn::Error::new(
+                    pound.span,
+                    "Expected '(' after '#' for raw attribute value",
+                ))
+            }
+        } else {
+            Ok(Self::Expression(input.parse()?))
+        }
+    }
+}
+
+/// Returns true if the attribute name is a URL attribute.
+fn is_url_attribute(name: &str) -> bool {
+    matches!(
+        name,
+        "href"
+            | "src"
+            | "action"
+            | "formaction"
+            | "poster"
+            | "cite"
+            | "data"
+            | "profile"
+            | "manifest"
+            | "icon"
+            | "background"
+            | "xlink:href"
+    )
 }

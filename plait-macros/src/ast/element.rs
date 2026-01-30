@@ -1,73 +1,90 @@
+use convert_case::{Boundary, Case, Casing};
 use syn::{
-    Ident, LitStr,
+    Ident, LitStr, braced,
     ext::IdentExt,
+    parenthesized,
     parse::{Parse, ParseStream},
-    token::{Brace, Minus, Semi},
+    token::{Brace, Comma, Paren, Semi},
 };
 
 use crate::ast::{Attribute, Node};
 
-/// An HTML element in the template AST.
-///
-/// Represents a parsed HTML element with its tag name, attributes, and children.
-/// Normal elements have a body enclosed in braces, while void elements (like `<br>`,
-/// `<input>`) are terminated with a semicolon.
-///
-/// # Syntax
-///
-/// ```text
-/// // Normal element
-/// div class="container" {
-///     "content"
-/// }
-///
-/// // Void element
-/// br;
-/// input type="text" name="field";
-/// ```
-#[derive(Debug)]
 pub struct Element {
-    /// The lowercase element tag name.
     pub name: LitStr,
 
-    /// The attributes on this element.
+    pub is_void: bool,
+
     pub attributes: Vec<Attribute>,
 
-    /// The child nodes of this element (empty for void elements).
     pub children: Vec<Node>,
 }
 
 impl Parse for Element {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        parse_element(input)
-    }
-}
+        let name_ident = input.call(Ident::parse_any)?;
+        let name_string = name_ident
+            .to_string()
+            .set_boundaries(&[Boundary::Underscore])
+            .to_case(Case::Kebab);
 
-fn parse_element(input: ParseStream<'_>) -> syn::Result<Element> {
-    let (name, is_void) = parse_element_name(input)?;
-    let attributes = parse_element_attributes(input)?;
+        let name = LitStr::new(&name_string, name_ident.span());
+        let is_void = is_void_element(&name_string);
 
-    if is_void {
-        if !input.peek(Semi) {
-            return Err(input.error("expected a `;` after a void element"));
+        let attributes = if input.peek(Paren) {
+            let content;
+            parenthesized!(content in input);
+
+            let mut attributes = Vec::new();
+
+            while !content.is_empty() {
+                attributes.push(content.parse()?);
+
+                if content.peek(Comma) {
+                    let _ = content.parse::<Comma>()?;
+                }
+            }
+
+            attributes
+        } else {
+            Vec::new()
+        };
+
+        if is_void {
+            if !input.peek(Semi) {
+                return Err(syn::Error::new(
+                    name_ident.span(),
+                    "expected a `;` after a void element",
+                ));
+            }
+            input.parse::<Semi>()?;
+
+            Ok(Self {
+                name,
+                is_void,
+                attributes,
+                children: Vec::new(),
+            })
+        } else if input.peek(Brace) {
+            let content;
+            braced!(content in input);
+
+            let mut children = Vec::new();
+            while !content.is_empty() {
+                children.push(content.parse()?);
+            }
+
+            Ok(Self {
+                name,
+                is_void,
+                attributes,
+                children,
+            })
+        } else {
+            Err(syn::Error::new(
+                name_ident.span(),
+                "expected a body of the element enclosed in `{}`",
+            ))
         }
-        input.parse::<Semi>()?;
-
-        Ok(Element {
-            name,
-            attributes,
-            children: Vec::new(),
-        })
-    } else if input.peek(Brace) {
-        let children = parse_element_children(input)?;
-
-        Ok(Element {
-            name,
-            attributes,
-            children,
-        })
-    } else {
-        Err(input.error("expected a body of the element enclosed in `{}`"))
     }
 }
 
@@ -91,54 +108,4 @@ fn is_void_element(name: &str) -> bool {
             | "track"
             | "wbr"
     )
-}
-
-fn parse_element_name(input: ParseStream<'_>) -> syn::Result<(LitStr, bool)> {
-    if !input.peek(Ident::peek_any) {
-        return Err(input.error("expected element name"));
-    }
-
-    let first_ident: Ident = input.call(Ident::parse_any)?;
-    let first_span = first_ident.span();
-    let mut last_span = first_span;
-    let mut name = first_ident.to_string().to_lowercase();
-
-    // Parse hyphenated segments: custom-element, my-custom-component, etc.
-    while input.peek(Minus) {
-        input.parse::<Minus>()?;
-
-        if !input.peek(Ident::peek_any) {
-            return Err(input.error("element name cannot end with hyphen"));
-        }
-
-        let next_ident: Ident = input.call(Ident::parse_any)?;
-        last_span = next_ident.span();
-        name.push('-');
-        name.push_str(&next_ident.to_string().to_lowercase());
-    }
-
-    let span = first_span.join(last_span).unwrap_or(first_span);
-    Ok((LitStr::new(&name, span), is_void_element(&name)))
-}
-
-fn parse_element_attributes(input: ParseStream<'_>) -> syn::Result<Vec<Attribute>> {
-    let mut attributes = Vec::new();
-
-    while !input.peek(Semi) && !input.peek(Brace) {
-        attributes.push(input.parse()?);
-    }
-
-    Ok(attributes)
-}
-
-fn parse_element_children(input: ParseStream<'_>) -> syn::Result<Vec<Node>> {
-    let content;
-    syn::braced!(content in input);
-
-    let mut children = Vec::new();
-    while !content.is_empty() {
-        children.push(content.parse()?);
-    }
-
-    Ok(children)
 }

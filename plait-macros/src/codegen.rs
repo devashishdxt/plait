@@ -1,4 +1,5 @@
-mod attrs;
+mod component;
 mod html;
+mod statements;
 
-pub use self::{attrs::attrs_impl, html::html_impl};
+pub use self::{component::component_impl, html::html_impl};
