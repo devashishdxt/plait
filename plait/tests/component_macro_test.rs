@@ -1,8 +1,8 @@
-use plait::{ToHtml, component, html, render, render_with_capacity};
+use plait::{ToHtml, component, html, merge_classes, render, render_with_capacity};
 
 component! {
-    pub fn Button<'a>(class: &'a str) {
-        button(class: format_args!("btn {class}"), #attrs) {
+    pub fn Button<'a>(class: Option<&'a str>) {
+        button(class: merge_classes!("btn", class), #attrs) {
             #children
         }
     }
@@ -12,7 +12,7 @@ component! {
     pub fn Card<T>(title: T) where T: ToHtml {
         div(class: "card") {
             h1 { (title) }
-            @Button(class: "btn-primary"; #attrs) {
+            @Button(class: "btn-primary".into(); #attrs) {
                 #children
             }
         }
@@ -24,15 +24,12 @@ fn test_button() {
     let disabled = false;
 
     let html = render(html! {
-        @Button(class: "btn-primary"; id: "btn1", disabled?: disabled) {
+        @Button(class: None; id: "btn1", disabled?: disabled) {
             "Click me"
         }
     });
 
-    assert_eq!(
-        html,
-        "<button class=\"btn btn-primary\" id=\"btn1\">Click me</button>"
-    );
+    assert_eq!(html, "<button class=\"btn\" id=\"btn1\">Click me</button>");
 }
 
 #[test]

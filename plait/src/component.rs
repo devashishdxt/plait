@@ -13,15 +13,15 @@ use crate::HtmlFormatter;
 /// use plait::{component, html, render};
 ///
 /// component! {
-///     pub fn Button<'a>(class: &'a str, disabled: bool) {
-///         button(class: format_args!("btn {}", class), disabled?: disabled, #attrs) {
+///     pub fn Button<'a>(class: Option<&'a str>, disabled: bool) {
+///         button(class: merge_classes!("btn", class), disabled?: disabled, #attrs) {
 ///             #children
 ///         }
 ///     }
 /// }
 ///
 /// let html = render(html! {
-///     @Button(class: "btn-primary", disabled: false; id: "button-id") {
+///     @Button(class: Some("btn-primary"), disabled: false; id: "button-id") {
 ///         "Click me"
 ///     }
 /// });
@@ -43,7 +43,7 @@ pub trait Component {
 
 #[cfg(test)]
 mod tests {
-    use crate::{HtmlFragment, render};
+    use crate::{HtmlFragment, merge_classes, render};
 
     use super::*;
 
@@ -60,7 +60,7 @@ mod tests {
             children: impl FnOnce(&mut HtmlFormatter<'_>),
         ) {
             f.open_tag("button");
-            f.write_attribute_escaped("class", format_args!("btn {}", self.class));
+            f.write_attribute_escaped("class", merge_classes!("btn", self.class));
             f.write_boolean_attribute("disabled", self.disabled);
             attrs(f);
             f.close_start_tag();

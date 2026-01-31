@@ -143,7 +143,7 @@
 //!
 //! component! {
 //!     fn Button<'a>(class: &'a str) {
-//!         button(class: format_args!("btn {class}"), #attrs) {
+//!         button(class: merge_classes!("btn", class), #attrs) {
 //!             #children
 //!         }
 //!     }
@@ -206,6 +206,29 @@
 //!
 //! Use `#(...)` for raw URLs when you trust the source.
 //!
+//! # Merging CSS Classes
+//!
+//! Use [`merge_classes!`] to combine multiple class values into a single space-separated string. Empty strings and
+//! `None` values are automatically skipped:
+//!
+//! ```rust
+//! use plait::{component, html, merge_classes, render};
+//!
+//! component! {
+//!     fn Button<'a>(variant: Option<&'a str>) {
+//!         button(class: merge_classes!("btn", variant), #attrs) {
+//!             #children
+//!         }
+//!     }
+//! }
+//!
+//! let html = render(html! {
+//!     @Button(variant: Some("btn-primary")) { "Click me" }
+//! });
+//!
+//! assert_eq!(html, "<button class=\"btn btn-primary\">Click me</button>");
+//! ```
+//!
 //! # Performance
 //!
 //! For better performance when output size is predictable, use [`render_with_capacity`] to pre-allocate the buffer:
@@ -217,6 +240,7 @@
 //!     div { "Content" }
 //! });
 //! ```
+mod classes;
 mod component;
 mod formatter;
 mod fragment;
@@ -228,6 +252,7 @@ mod url;
 pub use plait_macros::{component, html};
 
 pub use self::{
+    classes::{ClassPart, Classes},
     component::Component,
     formatter::HtmlFormatter,
     fragment::HtmlFragment,

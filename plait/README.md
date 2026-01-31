@@ -145,7 +145,7 @@ use plait::{component, html, render};
 
 component! {
     fn Button<'a>(class: &'a str) {
-        button(class: format_args!("btn {class}"), #attrs) {
+        button(class: merge_classes!("btn", class), #attrs) {
             #children
         }
     }
@@ -207,6 +207,29 @@ assert_eq!(html, "<a>Click</a>");  // href removed
 ```
 
 Use `#(...)` for raw URLs when you trust the source.
+
+## Merging CSS Classes
+
+Use `merge_classes!` to combine multiple class values into a single space-separated string. Empty strings and
+`None` values are automatically skipped:
+
+```rust
+use plait::{component, html, merge_classes, render};
+
+component! {
+    fn Button<'a>(variant: Option<&'a str>) {
+        button(class: merge_classes!("btn", variant), #attrs) {
+            #children
+        }
+    }
+}
+
+let html = render(html! {
+    @Button(variant: Some("btn-primary")) { "Click me" }
+});
+
+assert_eq!(html, "<button class=\"btn btn-primary\">Click me</button>");
+```
 
 ## Performance
 
