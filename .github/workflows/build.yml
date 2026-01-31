@@ -21,6 +21,18 @@ jobs:
           toolchain: stable
       - name: Run cargo build
         run: cargo build
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+      - name: Install stable rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Run cargo build
+        run: cargo test
   lint:
     name: Lint
     runs-on: ubuntu-latest
