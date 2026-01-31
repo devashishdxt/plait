@@ -41,8 +41,8 @@ pub fn html_impl(input: TokenStream) -> TokenStream {
     }
 
     quote! {
-        |#formatter : &mut ::plait::HtmlFormatter<'_>| {
+        ::plait::HtmlFragment(|#formatter : &mut ::plait::HtmlFormatter<'_>| {
             #(#statements)*
-        }
+        })
     }
 }

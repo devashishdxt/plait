@@ -1,4 +1,4 @@
-use plait::{component, html, render, render_with_capacity};
+use plait::{ToHtml, component, html, render, render_with_capacity};
 
 component! {
     pub fn Button<'a>(class: &'a str) {
@@ -9,8 +9,9 @@ component! {
 }
 
 component! {
-    pub fn Card {
+    pub fn Card<T>(title: T) where T: ToHtml {
         div(class: "card") {
+            h1 { (title) }
             @Button(class: "btn-primary"; #attrs) {
                 #children
             }
@@ -41,7 +42,7 @@ fn test_card() {
     let html = render_with_capacity(
         1024,
         html! {
-            @Card(; disabled?: disabled) {
+            @Card(title: html! { span { "My card" } }; disabled?: disabled) {
                 "Click me"
             }
         },
@@ -49,6 +50,6 @@ fn test_card() {
 
     assert_eq!(
         html,
-        "<div class=\"card\"><button class=\"btn btn-primary\" disabled>Click me</button></div>"
+        "<div class=\"card\"><h1><span>My card</span></h1><button class=\"btn btn-primary\" disabled>Click me</button></div>"
     );
 }

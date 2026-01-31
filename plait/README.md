@@ -163,6 +163,34 @@ assert_eq!(html, "<button class=\"btn primary\" id=\"submit-btn\">Click me</butt
 
 Inside components, `#attrs` spreads additional HTML attributes and `#children` renders the component's children.
 
+### Passing HTML as props
+
+Components can accept `html!` fragments as props using the `ToHtml` trait:
+
+```rust
+use plait::{ToHtml, component, html, render};
+
+component! {
+    fn Card<T>(title: T) where T: ToHtml {
+        div(class: "card") {
+            h1 { (title) }
+            #children
+        }
+    }
+}
+
+let html = render(html! {
+    @Card(title: html! { span(class: "highlight") { "My Title" } }) {
+        p { "Card content" }
+    }
+});
+
+assert_eq!(
+    html,
+    "<div class=\"card\"><h1><span class=\"highlight\">My Title</span></h1><p>Card content</p></div>"
+);
+```
+
 ## URL Safety
 
 URL attributes (`href`, `src`, `action`, etc.) are automatically validated. Dangerous schemes like `javascript:`

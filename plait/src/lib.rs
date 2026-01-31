@@ -161,6 +161,34 @@
 //!
 //! Inside components, `#attrs` spreads additional HTML attributes and `#children` renders the component's children.
 //!
+//! ## Passing HTML as props
+//!
+//! Components can accept [`html!`] fragments as props using the [`ToHtml`] trait:
+//!
+//! ```rust
+//! use plait::{ToHtml, component, html, render};
+//!
+//! component! {
+//!     fn Card<T>(title: T) where T: ToHtml {
+//!         div(class: "card") {
+//!             h1 { (title) }
+//!             #children
+//!         }
+//!     }
+//! }
+//!
+//! let html = render(html! {
+//!     @Card(title: html! { span(class: "highlight") { "My Title" } }) {
+//!         p { "Card content" }
+//!     }
+//! });
+//!
+//! assert_eq!(
+//!     html,
+//!     "<div class=\"card\"><h1><span class=\"highlight\">My Title</span></h1><p>Card content</p></div>"
+//! );
+//! ```
+//!
 //! # URL Safety
 //!
 //! URL attributes (`href`, `src`, `action`, etc.) are automatically validated. Dangerous schemes like `javascript:`
@@ -191,18 +219,27 @@
 //! ```
 mod component;
 mod formatter;
+mod fragment;
 mod html;
 mod maybe_attr;
+mod to_html;
 mod url;
 
 pub use plait_macros::{component, html};
 
-pub use self::{component::Component, formatter::HtmlFormatter, html::Html, maybe_attr::MaybeAttr};
+pub use self::{
+    component::Component,
+    formatter::HtmlFormatter,
+    fragment::HtmlFragment,
+    html::Html,
+    maybe_attr::MaybeAttr,
+    to_html::{ToHtml, ToHtmlRaw},
+};
 
-/// Renders HTML content using the provided closure.
+/// Renders any [`ToHtml`] value to an [`Html`] string.
 ///
-/// This function creates an [`Html`] buffer and passes an [`HtmlFormatter`] to the closure, which can be used to
-/// write HTML content. Typically used with the [`html!`] macro.
+/// This function creates an [`Html`] buffer and renders the content into it. Typically used with the [`html!`] macro,
+/// but accepts any type implementing [`ToHtml`].
 ///
 /// # Examples
 ///
@@ -217,15 +254,15 @@ pub use self::{component::Component, formatter::HtmlFormatter, html::Html, maybe
 ///
 /// assert_eq!(html, "<div class=\"container\">Hello, World!</div>");
 /// ```
-pub fn render(content: impl FnOnce(&mut HtmlFormatter<'_>)) -> Html {
+pub fn render(content: impl ToHtml) -> Html {
     let mut output = Html::new();
     let mut f = HtmlFormatter::new(&mut output);
-    content(&mut f);
+    content.render_to(&mut f);
 
     output
 }
 
-/// Renders HTML content with a pre-allocated buffer capacity.
+/// Renders any [`ToHtml`] value to an [`Html`] string with a pre-allocated buffer capacity.
 ///
 /// This function is similar to [`render`], but pre-allocates the internal string buffer with the specified capacity.
 /// Use this when you know the approximate size of the output to avoid reallocations and improve performance.
@@ -244,10 +281,10 @@ pub fn render(content: impl FnOnce(&mut HtmlFormatter<'_>)) -> Html {
 ///
 /// assert_eq!(html, "<div class=\"card\"><h1>Title</h1><p>Content goes here...</p></div>");
 /// ```
-pub fn render_with_capacity(capacity: usize, content: impl FnOnce(&mut HtmlFormatter<'_>)) -> Html {
+pub fn render_with_capacity(capacity: usize, content: impl ToHtml) -> Html {
     let mut output = Html::with_capacity(capacity);
     let mut f = HtmlFormatter::new(&mut output);
-    content(&mut f);
+    content.render_to(&mut f);
 
     output
 }

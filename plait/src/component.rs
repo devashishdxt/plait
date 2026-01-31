@@ -43,7 +43,7 @@ pub trait Component {
 
 #[cfg(test)]
 mod tests {
-    use crate::render;
+    use crate::{HtmlFragment, render};
 
     use super::*;
 
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_button_component() {
-        let html = render(|f| {
+        let html = render(HtmlFragment(|f| {
             Button {
                 class: "btn-primary",
                 disabled: false,
@@ -85,7 +85,7 @@ mod tests {
                     f.write_html_escaped("Click me");
                 },
             );
-        });
+        }));
 
         assert_eq!(
             html,
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_button_component_disabled() {
-        let html = render(|f| {
+        let html = render(HtmlFragment(|f| {
             Button {
                 class: "btn-primary",
                 disabled: true,
@@ -109,7 +109,7 @@ mod tests {
                     f.write_html_escaped("Click me");
                 },
             );
-        });
+        }));
 
         assert_eq!(
             html,

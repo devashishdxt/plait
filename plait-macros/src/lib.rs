@@ -62,8 +62,8 @@ use proc_macro::TokenStream;
 
 /// A procedural macro for generating type-safe HTML with embedded Rust expressions.
 ///
-/// The `html!` macro provides a macro-based syntax for creating HTML content at compile time. It returns a closure
-/// that takes `&mut HtmlFormatter<'_>` and writes the HTML output.
+/// The `html!` macro provides a macro-based syntax for creating HTML content at compile time. It returns an
+/// `HtmlFragment` that implements `ToHtml` and `ToHtmlRaw`.
 ///
 /// # Basic Usage
 ///
@@ -319,8 +319,8 @@ use proc_macro::TokenStream;
 ///
 /// # Generated code
 ///
-/// The macro generates a closure of type `impl FnOnce(&mut HtmlFormatter<'_>)`. Use with `render()` or
-/// `render_with_capacity()` to produce the final HTML string.
+/// The macro generates an `HtmlFragment` which implements `ToHtml`. Use with `render()` or `render_with_capacity()`
+/// to produce the final HTML string, or pass fragments directly to component props that accept `T: ToHtml`.
 #[proc_macro]
 pub fn html(input: TokenStream) -> TokenStream {
     codegen::html_impl(input.into()).into()
@@ -446,6 +446,33 @@ pub fn html(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
+///
+/// ## Accepting HTML fragments as props
+///
+/// Use the `ToHtml` trait bound to accept `html!` fragments as props:
+///
+/// ```rust,ignore
+/// use plait::ToHtml;
+///
+/// component! {
+///     pub fn Card<T>(header: T) where T: ToHtml {
+///         div(class: "card") {
+///             div(class: "card-header") { (header) }
+///             div(class: "card-body") { #children }
+///         }
+///     }
+/// }
+///
+/// // Pass an html! fragment as a prop:
+/// html! {
+///     @Card(header: html! { strong { "Title" } }) {
+///         "Card content"
+///     }
+/// }
+/// // Output: <div class="card"><div class="card-header"><strong>Title</strong></div><div class="card-body">Card content</div></div>
+/// ```
+///
+/// This works because `HtmlFragment` (returned by `html!`) implements `ToHtml`.
 ///
 /// ## Component composition
 ///

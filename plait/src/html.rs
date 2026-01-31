@@ -1,4 +1,4 @@
-use core::{fmt, ops::Deref};
+use core::ops::Deref;
 
 /// A wrapper type representing safe, pre-rendered HTML content.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -13,6 +13,11 @@ impl Html {
     /// Create a new HTML string with a given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Html(String::with_capacity(capacity))
+    }
+
+    /// Get a reference to the inner `String`.
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 
     /// Convert the HTML string into a `String`.
@@ -31,12 +36,6 @@ impl Deref for Html {
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl fmt::Display for Html {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
     }
 }
 

@@ -1,7 +1,7 @@
 use core::fmt::{self, Display, Write};
 
 use crate::{
-    Html, MaybeAttr,
+    Html, MaybeAttr, ToHtml, ToHtmlRaw,
     url::{is_url_attribute, is_url_safe},
 };
 
@@ -41,12 +41,12 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Returns a raw writer for current `HtmlFormatter`.
-    fn raw_writer(&mut self) -> &mut String {
+    pub(crate) fn raw_writer(&mut self) -> &mut String {
         self.0.inner_mut()
     }
 
     /// Returns a writer that escapes HTML special characters for current `HtmlFormatter`.
-    fn html_escaped_writer(&mut self) -> HtmlEscapedWriter<'_> {
+    pub(crate) fn html_escaped_writer(&mut self) -> HtmlEscapedWriter<'_> {
         HtmlEscapedWriter(self.0)
     }
 
@@ -68,13 +68,13 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Write HTML content to the formatter without escaping any special HTML characters.
-    pub fn write_raw(&mut self, raw: impl Display) {
-        write!(self.raw_writer(), "{raw}").unwrap()
+    pub fn write_raw(&mut self, raw: impl ToHtmlRaw) {
+        raw.render_raw_to(self);
     }
 
     /// Write HTML content to the formatter, escaping any special HTML characters.
-    pub fn write_html_escaped(&mut self, html: impl Display) {
-        write!(self.html_escaped_writer(), "{html}").unwrap()
+    pub fn write_html_escaped(&mut self, html: impl ToHtml) {
+        html.render_to(self);
     }
 
     /// Write an attribute to the formatter without escaping any special HTML characters.
@@ -162,7 +162,7 @@ fn is_void_element(name: &str) -> bool {
 }
 
 /// A writer that escapes HTML special characters.
-struct HtmlEscapedWriter<'a>(&'a mut Html);
+pub(crate) struct HtmlEscapedWriter<'a>(&'a mut Html);
 
 impl Write for HtmlEscapedWriter<'_> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
