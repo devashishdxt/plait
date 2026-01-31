@@ -10,7 +10,7 @@ use crate::HtmlFormatter;
 /// Use the [`component!`](crate::component!) macro to define components:
 ///
 /// ```rust
-/// use plait::{component, html, render};
+/// use plait::{component, html, merge_classes, render};
 ///
 /// component! {
 ///     pub fn Button<'a>(class: Option<&'a str>, disabled: bool) {

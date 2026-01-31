@@ -53,7 +53,7 @@ impl ClassPart for Option<&str> {
     }
 
     fn should_skip(&self) -> bool {
-        self.map_or(true, str::is_empty)
+        self.is_none_or(str::is_empty)
     }
 }
 

@@ -139,7 +139,7 @@
 //! Create reusable components using the [`component!`] macro:
 //!
 //! ```rust
-//! use plait::{component, html, render};
+//! use plait::{component, html, merge_classes, render};
 //!
 //! component! {
 //!     fn Button<'a>(class: &'a str) {
