@@ -1,8 +1,8 @@
-use plait::{ToHtml, component, html, merge_classes, render, render_with_capacity};
+use plait::{ToHtml, classes, component, html, render, render_with_capacity};
 
 component! {
     pub fn Button<'a>(class: Option<&'a str>) {
-        button(class: merge_classes!("btn", class), #attrs) {
+        button(class: classes!("btn", class), #attrs) {
             #children
         }
     }

@@ -2,9 +2,8 @@ use core::fmt;
 
 /// A trait for types that can be used as parts of a CSS class attribute.
 ///
-/// This trait enables different types to participate in class merging via the
-/// [`merge_classes!`](crate::merge_classes) macro. Implementations handle how each type writes its class value and
-/// whether it should be skipped.
+/// This trait enables different types to participate in class merging via the [`classes!`](crate::classes) macro.
+/// Implementations handle how each type writes its class value and whether it should be skipped.
 ///
 /// # Provided Implementations
 ///
@@ -14,14 +13,14 @@ use core::fmt;
 /// # Example
 ///
 /// ```rust
-/// use plait::{html, merge_classes, render};
+/// use plait::{html, classes, render};
 ///
 /// let base = "btn";
 /// let variant = Some("btn-primary");
 /// let disabled: Option<&str> = None;
 ///
 /// let html = render(html! {
-///     button(class: merge_classes!(base, variant, disabled)) { "Click" }
+///     button(class: classes!(base, variant, disabled)) { "Click" }
 /// });
 ///
 /// assert_eq!(html, "<button class=\"btn btn-primary\">Click</button>");
@@ -62,7 +61,7 @@ impl ClassPart for Option<&str> {
 /// `Classes` wraps a tuple of [`ClassPart`] values and implements [`Display`](core::fmt::Display) to join them with
 /// spaces. Empty or `None` values are automatically skipped.
 ///
-/// This type is typically created via the [`merge_classes!`](crate::merge_classes) macro rather than directly.
+/// This type is typically created via the [`classes!`](crate::classes) macro rather than directly.
 ///
 /// # Example
 ///
@@ -74,7 +73,27 @@ impl ClassPart for Option<&str> {
 /// ```
 pub struct Classes<T>(pub T);
 
-macro_rules! impl_classes_display {
+impl<T: ClassPart> fmt::Display for Classes<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.should_skip() {
+            Ok(())
+        } else {
+            self.0.write_to(f)
+        }
+    }
+}
+
+impl<T: ClassPart> ClassPart for Classes<T> {
+    fn write_to(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        ClassPart::write_to(&self.0, f)
+    }
+
+    fn should_skip(&self) -> bool {
+        ClassPart::should_skip(&self.0)
+    }
+}
+
+macro_rules! impl_classes_traits {
     ($($idx:tt: $T:ident),+) => {
         impl<$($T: $crate::ClassPart),+> ::core::fmt::Display for $crate::Classes<($($T,)+)> {
             #[allow(unused_assignments)]
@@ -92,17 +111,28 @@ macro_rules! impl_classes_display {
                 Ok(())
             }
         }
+
+        impl<$($T: $crate::ClassPart),+> $crate::ClassPart for $crate::Classes<($($T,)+)> {
+            #[allow(unused_assignments)]
+            fn write_to(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                ::core::fmt::Display::fmt(&self, f)
+            }
+
+            fn should_skip(&self) -> bool {
+                true $( && $crate::ClassPart::should_skip(&self.0.$idx) )+
+            }
+        }
     };
   }
 
-impl_classes_display!(0: T0);
-impl_classes_display!(0: T0, 1: T1);
-impl_classes_display!(0: T0, 1: T1, 2: T2);
-impl_classes_display!(0: T0, 1: T1, 2: T2, 3: T3);
-impl_classes_display!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4);
-impl_classes_display!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5);
-impl_classes_display!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6);
-impl_classes_display!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
+impl_classes_traits!(0: T0);
+impl_classes_traits!(0: T0, 1: T1);
+impl_classes_traits!(0: T0, 1: T1, 2: T2);
+impl_classes_traits!(0: T0, 1: T1, 2: T2, 3: T3);
+impl_classes_traits!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4);
+impl_classes_traits!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5);
+impl_classes_traits!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6);
+impl_classes_traits!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 
 /// Merges multiple CSS class values into a single space-separated string.
 ///
@@ -114,13 +144,13 @@ impl_classes_display!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 /// Basic usage with string literals and optional classes:
 ///
 /// ```rust
-/// use plait::{html, merge_classes, render};
+/// use plait::{html, classes, render};
 ///
 /// let is_active = true;
 /// let variant = Some("primary");
 ///
 /// let html = render(html! {
-///     div(class: merge_classes!(
+///     div(class: classes!(
 ///         "btn",
 ///         if is_active { "active" } else { "" },
 ///         variant,
@@ -132,14 +162,14 @@ impl_classes_display!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 /// assert_eq!(html, "<div class=\"btn active primary\">Button</div>");
 /// ```
 ///
-/// Using `merge_classes!` inside a component:
+/// Using `classes!` inside a component:
 ///
 /// ```rust
-/// use plait::{component, html, merge_classes, render};
+/// use plait::{component, html, classes, render};
 ///
 /// component! {
 ///     fn Button<'a>(variant: Option<&'a str>) {
-///         button(class: merge_classes!("btn", variant), #attrs) {
+///         button(class: classes!("btn", variant), #attrs) {
 ///             #children
 ///         }
 ///     }
@@ -152,7 +182,7 @@ impl_classes_display!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 /// assert_eq!(html, "<button class=\"btn btn-primary\">Submit</button>");
 /// ```
 #[macro_export]
-macro_rules! merge_classes {
+macro_rules! classes {
     ($($class:expr),+ $(,)?) => {
         $crate::Classes(($($class,)+))
     };

@@ -10,11 +10,11 @@ use crate::HtmlFormatter;
 /// Use the [`component!`](crate::component!) macro to define components:
 ///
 /// ```rust
-/// use plait::{component, html, merge_classes, render};
+/// use plait::{component, html, classes, render};
 ///
 /// component! {
 ///     pub fn Button<'a>(class: Option<&'a str>, disabled: bool) {
-///         button(class: merge_classes!("btn", class), disabled?: disabled, #attrs) {
+///         button(class: classes!("btn", class), disabled?: disabled, #attrs) {
 ///             #children
 ///         }
 ///     }
@@ -43,7 +43,7 @@ pub trait Component {
 
 #[cfg(test)]
 mod tests {
-    use crate::{HtmlFragment, merge_classes, render};
+    use crate::{HtmlFragment, classes, render};
 
     use super::*;
 
@@ -60,7 +60,7 @@ mod tests {
             children: impl FnOnce(&mut HtmlFormatter<'_>),
         ) {
             f.open_tag("button");
-            f.write_attribute_escaped("class", merge_classes!("btn", self.class));
+            f.write_attribute_escaped("class", classes!("btn", self.class));
             f.write_boolean_attribute("disabled", self.disabled);
             attrs(f);
             f.close_start_tag();

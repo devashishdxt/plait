@@ -139,11 +139,11 @@
 //! Create reusable components using the [`component!`] macro:
 //!
 //! ```rust
-//! use plait::{component, html, merge_classes, render};
+//! use plait::{component, html, classes, render};
 //!
 //! component! {
 //!     fn Button<'a>(class: &'a str) {
-//!         button(class: merge_classes!("btn", class), #attrs) {
+//!         button(class: classes!("btn", class), #attrs) {
 //!             #children
 //!         }
 //!     }
@@ -208,15 +208,15 @@
 //!
 //! # Merging CSS Classes
 //!
-//! Use [`merge_classes!`] to combine multiple class values into a single space-separated string. Empty strings and
+//! Use [`classes!`] to combine multiple class values into a single space-separated string. Empty strings and
 //! `None` values are automatically skipped:
 //!
 //! ```rust
-//! use plait::{component, html, merge_classes, render};
+//! use plait::{component, html, classes, render};
 //!
 //! component! {
 //!     fn Button<'a>(variant: Option<&'a str>) {
-//!         button(class: merge_classes!("btn", variant), #attrs) {
+//!         button(class: classes!("btn", variant), #attrs) {
 //!             #children
 //!         }
 //!     }
