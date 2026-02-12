@@ -16,12 +16,12 @@ pub fn push_statements_for_node(statements: &mut Vec<TokenStream>, formatter: &I
         }
         Node::RawExpression(expr) => {
             statements.push(quote! {
-                ::plait::ToHtmlRaw::render_raw_to(#expr, #formatter);
+                ::plait::IntoHtmlRaw::render_raw_to(#expr, #formatter);
             });
         }
         Node::Expression(expr) => {
             statements.push(quote! {
-                ::plait::ToHtml::render_to(#expr, #formatter);
+                ::plait::IntoHtml::render_to(#expr, #formatter);
             });
         }
         Node::Children(children) => {

@@ -1,4 +1,4 @@
-use plait::{ToHtml, classes, component, html, render, render_with_capacity};
+use plait::{IntoHtml, classes, component, html, render, render_with_capacity};
 
 component! {
     pub fn Button<'a>(class: Option<&'a str>) {
@@ -9,7 +9,7 @@ component! {
 }
 
 component! {
-    pub fn Card<T>(title: T) where T: ToHtml {
+    pub fn Card<T>(title: T) where T: IntoHtml {
         div(class: "card") {
             h1 { (title) }
             @Button(class: "btn-primary".into(); #attrs) {

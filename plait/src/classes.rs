@@ -168,7 +168,7 @@ impl_classes_traits!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 /// use plait::{component, html, classes, render};
 ///
 /// component! {
-///     fn Button<'a>(variant: Option<&'a str>) {
+///     fn Button(variant: Option<&str>) {
 ///         button(class: classes!("btn", variant), #attrs) {
 ///             #children
 ///         }

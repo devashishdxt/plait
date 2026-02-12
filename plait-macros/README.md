@@ -25,7 +25,7 @@ let page = render(html! {
 
 // Define a reusable component
 component! {
-    pub fn Card<'a>(title: &'a str) {
+    pub fn Card(title: &str) {
         div(class: "card", #attrs) {
             h2 { (title) }
             #children

@@ -5,7 +5,10 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
-use crate::{ast::ComponentDefinition, codegen::statements::push_statements_for_node};
+use crate::{
+    ast::ComponentDefinition, codegen::statements::push_statements_for_node,
+    desugar::desugar_fields,
+};
 
 struct ComponentInput {
     component: ComponentDefinition,
@@ -22,10 +25,15 @@ impl Parse for ComponentInput {
 }
 
 pub fn component_impl(input: TokenStream) -> TokenStream {
-    let component_input: ComponentInput = match syn::parse2(input) {
+    let mut component_input: ComponentInput = match syn::parse2(input) {
         Ok(a) => a,
         Err(e) => return e.to_compile_error(),
     };
+
+    desugar_fields(
+        &mut component_input.component.fields,
+        &mut component_input.component.generics,
+    );
 
     let component_struct = component_struct(&component_input.component);
 

@@ -139,10 +139,10 @@
 //! Create reusable components using the [`component!`] macro:
 //!
 //! ```rust
-//! use plait::{component, html, classes, render};
+//! use plait::{component, html, classes, render, ClassPart};
 //!
 //! component! {
-//!     fn Button<'a>(class: &'a str) {
+//!     fn Button(class: impl ClassPart) {
 //!         button(class: classes!("btn", class), #attrs) {
 //!             #children
 //!         }
@@ -163,13 +163,13 @@
 //!
 //! ## Passing HTML as props
 //!
-//! Components can accept [`html!`] fragments as props using the [`ToHtml`] trait:
+//! Components can accept [`html!`] fragments as props using the [`IntoHtml`] trait:
 //!
 //! ```rust
-//! use plait::{ToHtml, component, html, render};
+//! use plait::{IntoHtml, component, html, render};
 //!
 //! component! {
-//!     fn Card<T>(title: T) where T: ToHtml {
+//!     fn Card(title: impl IntoHtml) {
 //!         div(class: "card") {
 //!             h1 { (title) }
 //!             #children
@@ -208,14 +208,14 @@
 //!
 //! # Merging CSS Classes
 //!
-//! Use [`classes!`] to combine multiple class values into a single space-separated string. Empty strings and
-//! `None` values are automatically skipped:
+//! Use [`classes!`] to combine multiple class values into a single space-separated string. Empty strings and `None`
+//! values are automatically skipped:
 //!
 //! ```rust
 //! use plait::{component, html, classes, render};
 //!
 //! component! {
-//!     fn Button<'a>(variant: Option<&'a str>) {
+//!     fn Button(variant: Option<&str>) {
 //!         button(class: classes!("btn", variant), #attrs) {
 //!             #children
 //!         }
@@ -258,13 +258,13 @@ pub use self::{
     fragment::HtmlFragment,
     html::Html,
     maybe_attr::MaybeAttr,
-    to_html::{ToHtml, ToHtmlRaw},
+    to_html::{IntoHtml, IntoHtmlRaw},
 };
 
-/// Renders any [`ToHtml`] value to an [`Html`] string.
+/// Renders any [`IntoHtml`] value to an [`Html`] string.
 ///
 /// This function creates an [`Html`] buffer and renders the content into it. Typically used with the [`html!`] macro,
-/// but accepts any type implementing [`ToHtml`].
+/// but accepts any type implementing [`IntoHtml`].
 ///
 /// # Examples
 ///
@@ -279,7 +279,7 @@ pub use self::{
 ///
 /// assert_eq!(html, "<div class=\"container\">Hello, World!</div>");
 /// ```
-pub fn render(content: impl ToHtml) -> Html {
+pub fn render(content: impl IntoHtml) -> Html {
     let mut output = Html::new();
     let mut f = HtmlFormatter::new(&mut output);
     content.render_to(&mut f);
@@ -287,7 +287,7 @@ pub fn render(content: impl ToHtml) -> Html {
     output
 }
 
-/// Renders any [`ToHtml`] value to an [`Html`] string with a pre-allocated buffer capacity.
+/// Renders any [`IntoHtml`] value to an [`Html`] string with a pre-allocated buffer capacity.
 ///
 /// This function is similar to [`render`], but pre-allocates the internal string buffer with the specified capacity.
 /// Use this when you know the approximate size of the output to avoid reallocations and improve performance.
@@ -306,7 +306,7 @@ pub fn render(content: impl ToHtml) -> Html {
 ///
 /// assert_eq!(html, "<div class=\"card\"><h1>Title</h1><p>Content goes here...</p></div>");
 /// ```
-pub fn render_with_capacity(capacity: usize, content: impl ToHtml) -> Html {
+pub fn render_with_capacity(capacity: usize, content: impl IntoHtml) -> Html {
     let mut output = Html::with_capacity(capacity);
     let mut f = HtmlFormatter::new(&mut output);
     content.render_to(&mut f);

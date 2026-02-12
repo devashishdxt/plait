@@ -10,7 +10,7 @@ mod node;
 pub use self::{
     attribute::{Attribute, AttributeValue},
     component_call::ComponentCall,
-    component_definition::ComponentDefinition,
+    component_definition::{ComponentDefinition, ComponentDefinitionField},
     element::Element,
     for_loop::ForLoop,
     if_condition::{ElseBranch, IfCondition},

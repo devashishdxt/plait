@@ -1,7 +1,7 @@
 use core::fmt::{self, Display, Write};
 
 use crate::{
-    Html, MaybeAttr, ToHtml, ToHtmlRaw,
+    Html, IntoHtml, IntoHtmlRaw, MaybeAttr,
     url::{is_url_attribute, is_url_safe},
 };
 
@@ -68,12 +68,12 @@ impl<'a> HtmlFormatter<'a> {
     }
 
     /// Write HTML content to the formatter without escaping any special HTML characters.
-    pub fn write_raw(&mut self, raw: impl ToHtmlRaw) {
+    pub fn write_raw(&mut self, raw: impl IntoHtmlRaw) {
         raw.render_raw_to(self);
     }
 
     /// Write HTML content to the formatter, escaping any special HTML characters.
-    pub fn write_html_escaped(&mut self, html: impl ToHtml) {
+    pub fn write_html_escaped(&mut self, html: impl IntoHtml) {
         html.render_to(self);
     }
 

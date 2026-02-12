@@ -23,7 +23,7 @@
 //!
 //! // Define a reusable component
 //! component! {
-//!     pub fn Card<'a>(title: &'a str) {
+//!     pub fn Card(title: &str) {
 //!         div(class: "card", #attrs) {
 //!             h2 { (title) }
 //!             #children
@@ -57,13 +57,14 @@
 
 mod ast;
 mod codegen;
+mod desugar;
 
 use proc_macro::TokenStream;
 
 /// A procedural macro for generating type-safe HTML with embedded Rust expressions.
 ///
 /// The `html!` macro provides a macro-based syntax for creating HTML content at compile time. It returns an
-/// `HtmlFragment` that implements `ToHtml` and `ToHtmlRaw`.
+/// `HtmlFragment` that implements `IntoHtml` and `IntoHtmlRaw`.
 ///
 /// # Basic Usage
 ///
@@ -319,8 +320,8 @@ use proc_macro::TokenStream;
 ///
 /// # Generated code
 ///
-/// The macro generates an `HtmlFragment` which implements `ToHtml`. Use with `render()` or `render_with_capacity()`
-/// to produce the final HTML string, or pass fragments directly to component props that accept `T: ToHtml`.
+/// The macro generates an `HtmlFragment` which implements `IntoHtml`. Use with `render()` or `render_with_capacity()`
+/// to produce the final HTML string, or pass fragments directly to component props that accept `T: IntoHtml`.
 #[proc_macro]
 pub fn html(input: TokenStream) -> TokenStream {
     codegen::html_impl(input.into()).into()
@@ -368,7 +369,7 @@ pub fn html(input: TokenStream) -> TokenStream {
 ///
 /// ```rust,ignore
 /// component! {
-///     pub fn Button<'a>(class: &'a str, size: u32) {
+///     pub fn Button(class: &str, size: u32) {
 ///         button(class: format_args!("btn {} size-{}", class, size)) {
 ///             #children
 ///         }
@@ -415,7 +416,7 @@ pub fn html(input: TokenStream) -> TokenStream {
 ///
 /// ```rust,ignore
 /// component! {
-///     pub fn Button<'a>(class: &'a str) {
+///     pub fn Button(class: &str) {
 ///         button(class: format_args!("btn {}", class), #attrs) {
 ///             #children
 ///         }
@@ -431,31 +432,15 @@ pub fn html(input: TokenStream) -> TokenStream {
 /// // Output: <button class="btn primary" id="submit" disabled>Submit</button>
 /// ```
 ///
-/// ## Generics and lifetimes
-///
-/// Components support full Rust generics:
-///
-/// ```rust,ignore
-/// component! {
-///     pub fn List<'a, T: std::fmt::Display>(items: &'a [T]) {
-///         ul {
-///             for item in items {
-///                 li { (item) }
-///             }
-///         }
-///     }
-/// }
-/// ```
-///
 /// ## Accepting HTML fragments as props
 ///
-/// Use the `ToHtml` trait bound to accept `html!` fragments as props:
+/// Use the `IntoHtml` trait bound to accept `html!` fragments as props:
 ///
 /// ```rust,ignore
-/// use plait::ToHtml;
+/// use plait::IntoHtml;
 ///
 /// component! {
-///     pub fn Card<T>(header: T) where T: ToHtml {
+///     pub fn Card(header: impl IntoHtml) {
 ///         div(class: "card") {
 ///             div(class: "card-header") { (header) }
 ///             div(class: "card-body") { #children }
@@ -472,7 +457,7 @@ pub fn html(input: TokenStream) -> TokenStream {
 /// // Output: <div class="card"><div class="card-header"><strong>Title</strong></div><div class="card-body">Card content</div></div>
 /// ```
 ///
-/// This works because `HtmlFragment` (returned by `html!`) implements `ToHtml`.
+/// This works because `HtmlFragment` (returned by `html!`) implements `IntoHtml`.
 ///
 /// ## Component composition
 ///
@@ -480,8 +465,8 @@ pub fn html(input: TokenStream) -> TokenStream {
 ///
 /// ```rust,ignore
 /// component! {
-///     pub fn Button<'a>(class: &'a str) {
-///         button(class: format_args!("btn {}", class), #attrs) {
+///     pub fn Button(class: impl ClassPart) {
+///         button(class: classes!("btn", class), #attrs) {
 ///             #children
 ///         }
 ///     }

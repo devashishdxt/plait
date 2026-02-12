@@ -25,13 +25,13 @@ use crate::{Html, HtmlFormatter, HtmlFragment};
 /// assert_eq!(html, "<p>&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;</p>");
 /// ```
 ///
-/// Components can accept any `ToHtml` type as a prop:
+/// Components can accept any `IntoHtml` type as a prop:
 ///
 /// ```rust
-/// use plait::{ToHtml, component, html, render};
+/// use plait::{IntoHtml, component, html, render};
 ///
 /// component! {
-///     fn Wrapper<T>(content: T) where T: ToHtml {
+///     fn Wrapper(content: impl IntoHtml) {
 ///         div(class: "wrapper") { (content) }
 ///     }
 /// }
@@ -44,12 +44,12 @@ use crate::{Html, HtmlFormatter, HtmlFragment};
 /// let html2 = render(html! { @Wrapper(content: html! { strong { "Bold" } }) {} });
 /// assert_eq!(html2, "<div class=\"wrapper\"><strong>Bold</strong></div>");
 /// ```
-pub trait ToHtml {
+pub trait IntoHtml {
     /// Renders this value to the given HTML formatter with escaping.
     fn render_to(self, f: &mut HtmlFormatter<'_>);
 }
 
-impl<F> ToHtml for HtmlFragment<F>
+impl<F> IntoHtml for HtmlFragment<F>
 where
     F: FnOnce(&mut HtmlFormatter<'_>),
 {
@@ -58,19 +58,19 @@ where
     }
 }
 
-impl ToHtml for Html {
+impl IntoHtml for Html {
     fn render_to(self, f: &mut HtmlFormatter<'_>) {
         write!(f.raw_writer(), "{}", self.into_string()).unwrap()
     }
 }
 
-impl ToHtml for &Html {
+impl IntoHtml for &Html {
     fn render_to(self, f: &mut HtmlFormatter<'_>) {
         write!(f.raw_writer(), "{}", self.as_str()).unwrap()
     }
 }
 
-impl<T> ToHtml for T
+impl<T> IntoHtml for T
 where
     T: Display,
 {
@@ -91,8 +91,8 @@ where
 ///
 /// # Implementations
 ///
-/// - **[`HtmlFragment`]** - Renders the fragment directly (same behavior as [`ToHtml`])
-/// - **[`Html`]** - Renders the HTML string directly (same behavior as [`ToHtml`])
+/// - **[`HtmlFragment`]** - Renders the fragment directly (same behavior as [`IntoHtml`])
+/// - **[`Html`]** - Renders the HTML string directly (same behavior as [`IntoHtml`])
 /// - **[`Display`] types** - Rendered without escaping
 ///
 /// # Examples
@@ -106,12 +106,12 @@ where
 /// // Content is NOT escaped
 /// assert_eq!(html, "<div><strong>Bold</strong></div>");
 /// ```
-pub trait ToHtmlRaw {
+pub trait IntoHtmlRaw {
     /// Renders this value to the given HTML formatter without escaping.
     fn render_raw_to(self, f: &mut HtmlFormatter<'_>);
 }
 
-impl<F> ToHtmlRaw for HtmlFragment<F>
+impl<F> IntoHtmlRaw for HtmlFragment<F>
 where
     F: FnOnce(&mut HtmlFormatter<'_>),
 {
@@ -120,19 +120,19 @@ where
     }
 }
 
-impl ToHtmlRaw for Html {
+impl IntoHtmlRaw for Html {
     fn render_raw_to(self, f: &mut HtmlFormatter<'_>) {
         write!(f.raw_writer(), "{}", self.into_string()).unwrap()
     }
 }
 
-impl ToHtmlRaw for &Html {
+impl IntoHtmlRaw for &Html {
     fn render_raw_to(self, f: &mut HtmlFormatter<'_>) {
         write!(f.raw_writer(), "{}", self.as_str()).unwrap()
     }
 }
 
-impl<T> ToHtmlRaw for T
+impl<T> IntoHtmlRaw for T
 where
     T: Display,
 {

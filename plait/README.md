@@ -141,10 +141,10 @@ let html = render(html! {
 Create reusable components using the `component!` macro:
 
 ```rust
-use plait::{component, html, classes, render};
+use plait::{component, html, classes, render, ClassPart};
 
 component! {
-    fn Button<'a>(class: &'a str) {
+    fn Button(class: impl ClassPart) {
         button(class: classes!("btn", class), #attrs) {
             #children
         }
@@ -165,13 +165,13 @@ Inside components, `#attrs` spreads additional HTML attributes and `#children` r
 
 ### Passing HTML as props
 
-Components can accept `html!` fragments as props using the `ToHtml` trait:
+Components can accept `html!` fragments as props using the `IntoHtml` trait:
 
 ```rust
-use plait::{ToHtml, component, html, render};
+use plait::{IntoHtml, component, html, render};
 
 component! {
-    fn Card<T>(title: T) where T: ToHtml {
+    fn Card(title: impl IntoHtml) {
         div(class: "card") {
             h1 { (title) }
             #children
@@ -210,14 +210,14 @@ Use `#(...)` for raw URLs when you trust the source.
 
 ## Merging CSS Classes
 
-Use `classes!` to combine multiple class values into a single space-separated string. Empty strings and
-`None` values are automatically skipped:
+Use `classes!` to combine multiple class values into a single space-separated string. Empty strings and `None`
+values are automatically skipped:
 
 ```rust
 use plait::{component, html, classes, render};
 
 component! {
-    fn Button<'a>(variant: Option<&'a str>) {
+    fn Button(variant: Option<&str>) {
         button(class: classes!("btn", variant), #attrs) {
             #children
         }

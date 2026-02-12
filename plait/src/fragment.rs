@@ -3,10 +3,10 @@ use crate::HtmlFormatter;
 /// A wrapper type for HTML rendering closures returned by the [`html!`](crate::html) macro.
 ///
 /// `HtmlFragment` wraps a closure that writes HTML to an [`HtmlFormatter`]. This type implements both
-/// [`ToHtml`](crate::ToHtml) and [`ToHtmlRaw`](crate::ToHtmlRaw), allowing fragments to be:
+/// [`IntoHtml`](crate::IntoHtml) and [`IntoHtmlRaw`](crate::IntoHtmlRaw), allowing fragments to be:
 ///
 /// - Passed to [`render`](crate::render) and [`render_with_capacity`](crate::render_with_capacity)
-/// - Used as component props with generic `T: ToHtml` bounds
+/// - Used as component props with generic `T: IntoHtml` bounds
 /// - Stored in variables and composed together
 /// - Embedded in other [`html!`](crate::html) fragments via `(expr)` or `#(expr)` syntax
 ///
@@ -15,7 +15,7 @@ use crate::HtmlFormatter;
 /// # Examples
 ///
 /// ```rust
-/// use plait::{ToHtml, html, render};
+/// use plait::{IntoHtml, html, render};
 ///
 /// // Store a fragment in a variable
 /// let header = html! { h1 { "Welcome" } };

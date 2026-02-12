@@ -13,7 +13,7 @@ use crate::HtmlFormatter;
 /// use plait::{component, html, classes, render};
 ///
 /// component! {
-///     pub fn Button<'a>(class: Option<&'a str>, disabled: bool) {
+///     pub fn Button(class: Option<&str>, disabled: bool) {
 ///         button(class: classes!("btn", class), disabled?: disabled, #attrs) {
 ///             #children
 ///         }
