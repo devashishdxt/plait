@@ -15,14 +15,13 @@ struct HtmlInput {
 impl Parse for HtmlInput {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let span = input.span();
-
         let mut nodes = Vec::new();
 
         while !input.is_empty() {
             nodes.push(input.parse()?);
         }
 
-        Ok(HtmlInput { nodes, span })
+        Ok(Self { nodes, span })
     }
 }
 
@@ -32,17 +31,18 @@ pub fn html_impl(input: TokenStream) -> TokenStream {
         Err(e) => return e.to_compile_error(),
     };
 
+    let write = Ident::new("__plait_write", html_input.span);
     let mut statements = Vec::new();
 
-    let formatter = Ident::new("__plait_html_formatter", html_input.span);
-
     for node in html_input.nodes {
-        push_statements_for_node(&mut statements, &formatter, node);
+        push_statements_for_node(&mut statements, &write, node);
     }
 
     quote! {
-        ::plait::HtmlFragment(|#formatter : &mut ::plait::HtmlFormatter<'_>| {
+        ::plait::HtmlFragment(move |#write: &mut (dyn core::fmt::Write + '_)| {
             #(#statements)*
+
+            Ok(())
         })
     }
 }

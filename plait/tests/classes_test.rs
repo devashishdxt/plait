@@ -1,12 +1,15 @@
-use plait::{ClassPart, classes, component, html, render};
+use plait::{ClassPart, classes, component, html};
 
 #[test]
 fn test_classes_macro() {
-    let html = render(html! {
+    let html = html! {
         button(class: classes!("btn", "btn-primary")) {}
-    });
+    };
 
-    assert_eq!(html, "<button class=\"btn btn-primary\"></button>")
+    assert_eq!(
+        html.to_string(),
+        "<button class=\"btn btn-primary\"></button>"
+    )
 }
 
 #[test]
@@ -17,17 +20,20 @@ fn test_classes_macro_in_component() {
         }
     }
 
-    let button_none = render(html! {
+    let button_none = html! {
         @Button(class: None) {}
-    });
+    };
 
-    assert_eq!(button_none, "<button class=\"btn\"></button>");
+    assert_eq!(button_none.to_string(), "<button class=\"btn\"></button>");
 
-    let button_some = render(html! {
+    let button_some = html! {
         @Button(class: Some("btn-primary")) {}
-    });
+    };
 
-    assert_eq!(button_some, "<button class=\"btn btn-primary\"></button>");
+    assert_eq!(
+        button_some.to_string(),
+        "<button class=\"btn btn-primary\"></button>"
+    );
 }
 
 #[test]
@@ -38,24 +44,27 @@ fn test_classes_macro_in_component_with_class_part() {
         }
     }
 
-    let button_none = render(html! {
-        @Button(class: None) {}
-    });
+    let button_none = html! {
+        @Button(class: None::<&str>) {}
+    };
 
-    assert_eq!(button_none, "<button class=\"btn\"></button>");
+    assert_eq!(button_none.to_string(), "<button class=\"btn\"></button>");
 
-    let button_some = render(html! {
+    let button_some = html! {
         @Button(class: Some("btn-primary")) {}
-    });
-
-    assert_eq!(button_some, "<button class=\"btn btn-primary\"></button>");
-
-    let button_classes = render(html! {
-        @Button(class: classes!("btn-secondary", "btn-lg")) {}
-    });
+    };
 
     assert_eq!(
-        button_classes,
+        button_some.to_string(),
+        "<button class=\"btn btn-primary\"></button>"
+    );
+
+    let button_classes = html! {
+        @Button(class: classes!("btn-secondary", "btn-lg")) {}
+    };
+
+    assert_eq!(
+        button_classes.to_string(),
         "<button class=\"btn btn-secondary btn-lg\"></button>"
     );
 }

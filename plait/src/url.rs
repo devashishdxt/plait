@@ -1,22 +1,3 @@
-/// Returns true if the attribute name is a URL attribute.
-pub(crate) fn is_url_attribute(name: &str) -> bool {
-    matches!(
-        name,
-        "href"
-            | "src"
-            | "action"
-            | "formaction"
-            | "poster"
-            | "cite"
-            | "data"
-            | "profile"
-            | "manifest"
-            | "icon"
-            | "background"
-            | "xlink:href"
-    )
-}
-
 /// Returns true if the URL is safe to use in HTML. It is important to still escape any special HTML characters after
 /// validation.
 pub(crate) fn is_url_safe(url: &str) -> bool {

@@ -11,11 +11,8 @@ use crate::ast::{Attribute, Node};
 
 pub struct Element {
     pub name: LitStr,
-
     pub is_void: bool,
-
     pub attributes: Vec<Attribute>,
-
     pub children: Vec<Node>,
 }
 
@@ -41,6 +38,11 @@ impl Parse for Element {
 
                 if content.peek(Comma) {
                     let _ = content.parse::<Comma>()?;
+                } else if !content.is_empty() {
+                    return Err(syn::Error::new(
+                        content.span(),
+                        "expected a `,` or `)` after an attribute",
+                    ));
                 }
             }
 
@@ -56,7 +58,7 @@ impl Parse for Element {
                     "expected a `;` after a void element",
                 ));
             }
-            input.parse::<Semi>()?;
+            let _: Semi = input.parse()?;
 
             Ok(Self {
                 name,

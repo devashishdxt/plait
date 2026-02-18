@@ -6,8 +6,8 @@ use syn::{
 };
 
 use crate::{
-    ast::ComponentDefinition, codegen::statements::push_statements_for_node,
-    desugar::desugar_fields,
+    ast::ComponentDefinition,
+    codegen::{desugar::desugar_fields, statements::push_statements_for_node},
 };
 
 struct ComponentInput {
@@ -81,24 +81,26 @@ fn component_component_impl(component: ComponentDefinition, span: Span) -> Token
 
     let deconstruct = component_struct_deconstruct(&component);
 
-    let formatter = Ident::new("f", span);
+    let write = Ident::new("__plait_write", span);
 
     let mut statements = Vec::new();
 
     for node in component.body {
-        push_statements_for_node(&mut statements, &formatter, node);
+        push_statements_for_node(&mut statements, &write, node);
     }
 
     quote! {
         impl #impl_generics ::plait::Component for #ident #type_generics #where_clause {
-            fn render(
-                self,
-                #formatter : &mut ::plait::HtmlFormatter<'_>,
-                attrs: impl ::core::ops::FnOnce(&mut ::plait::HtmlFormatter<'_>),
-                children: impl ::core::ops::FnOnce(&mut ::plait::HtmlFormatter<'_>),
-            ) {
+            fn html_fmt(
+                &self,
+                #write: &mut (dyn ::core::fmt::Write + '_),
+                attrs: impl ::core::ops::Fn(&mut (dyn ::core::fmt::Write + '_)) -> ::core::fmt::Result,
+                children: impl ::core::ops::Fn(&mut (dyn ::core::fmt::Write + '_)) -> ::core::fmt::Result,
+            ) -> ::core::fmt::Result {
                 #deconstruct
                 #(#statements)*
+
+                Ok(())
             }
         }
     }

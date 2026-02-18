@@ -1,4 +1,5 @@
 mod component;
+mod desugar;
 mod html;
 mod statements;
 

@@ -8,21 +8,15 @@ use crate::ast::Node;
 
 pub struct ComponentDefinition {
     pub attributes: Vec<Attribute>,
-
     pub visibility: Visibility,
-
     pub ident: Ident,
-
     pub generics: Generics,
-
     pub fields: Vec<ComponentDefinitionField>,
-
     pub body: Vec<Node>,
 }
 
 pub struct ComponentDefinitionField {
     pub ident: Ident,
-
     pub ty: Type,
 }
 
@@ -45,6 +39,8 @@ impl Parse for ComponentDefinition {
 
                 if content.peek(Comma) {
                     let _ = content.parse::<Comma>()?;
+                } else if !content.is_empty() {
+                    return Err(content.error("expected ',' or ')'"));
                 }
             }
 

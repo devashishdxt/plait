@@ -1,35 +1,43 @@
-use crate::HtmlFormatter;
+use core::fmt;
 
-/// A wrapper type for HTML rendering closures returned by the [`html!`](crate::html) macro.
+use crate::display::HtmlDisplay;
+
+/// The concrete type returned by the [`html!`](crate::html) macro.
 ///
-/// `HtmlFragment` wraps a closure that writes HTML to an [`HtmlFormatter`]. This type implements both
-/// [`IntoHtml`](crate::IntoHtml) and [`IntoHtmlRaw`](crate::IntoHtmlRaw), allowing fragments to be:
+/// `HtmlFragment` wraps a closure that writes HTML into any [`fmt::Write`] sink. It implements both
+/// [`Display`](core::fmt::Display) and [`HtmlDisplay`], so it can be rendered with `.to_string()` / `write!` and
+/// embedded in other templates via `@(expr)`.
 ///
-/// - Passed to [`render`](crate::render) and [`render_with_capacity`](crate::render_with_capacity)
-/// - Used as component props with generic `T: IntoHtml` bounds
-/// - Stored in variables and composed together
-/// - Embedded in other [`html!`](crate::html) fragments via `(expr)` or `#(expr)` syntax
+/// You do not need to construct `HtmlFragment` directly - it is created by [`html!`](crate::html).
 ///
-/// You typically don't create `HtmlFragment` directly - it's returned by the [`html!`](crate::html) macro.
-///
-/// # Examples
+/// # Example
 ///
 /// ```rust
-/// use plait::{IntoHtml, html, render};
+/// use plait::html;
 ///
-/// // Store a fragment in a variable
-/// let header = html! { h1 { "Welcome" } };
+/// let inner = html! { em { "world" } };
+/// let outer = html! { p { "hello " @(&inner) } };
 ///
-/// // Use it in another fragment
-/// let page = render(html! {
-///     div {
-///         (header)
-///         p { "Content" }
-///     }
-/// });
-///
-/// assert_eq!(page, "<div><h1>Welcome</h1><p>Content</p></div>");
+/// assert_eq!(outer.to_string(), "<p>hello <em>world</em></p>");
 /// ```
 pub struct HtmlFragment<F>(pub F)
 where
-    F: FnOnce(&mut HtmlFormatter<'_>);
+    F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result;
+
+impl<F> HtmlDisplay for HtmlFragment<F>
+where
+    F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+{
+    fn html_fmt(&self, w: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+        (self.0)(w)
+    }
+}
+
+impl<F> fmt::Display for HtmlFragment<F>
+where
+    F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self.0)(f)
+    }
+}

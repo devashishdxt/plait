@@ -1,6 +1,6 @@
 [package]
 name = "plait"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Devashish Dixit <devashishdxt@gmail.com>"]
 license = "MIT/Apache-2.0"
 description = "A modern HTML templating library for Rust that embraces composition."

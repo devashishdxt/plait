@@ -1,52 +1,88 @@
-use core::fmt::Display;
+use core::fmt;
 
-use crate::HtmlFormatter;
+/// A trait for values that may or may not produce an HTML attribute.
+///
+/// `MaybeAttributeValue` powers the `?:` (optional attribute) syntax in [`html!`](crate::html). When an attribute is
+/// written as `name?: value`, plait calls this trait to decide whether to render the attribute and, if so, whether it
+/// carries a value.
+///
+/// # Provided Implementations
+///
+/// | Type                                | Behaviour                                                                 |
+/// |-------------------------------------|---------------------------------------------------------------------------|
+/// | `bool`                              | `true` emits a boolean attribute (`disabled`), `false` omits it entirely. |
+/// | `Option<T: Display>`                | `Some(v)` emits `name="v"`, `None` omits the attribute.                   |
+/// | `&T` where `T: MaybeAttributeValue` | Delegates through the reference.                                          |
+///
+/// # Example
+///
+/// ```rust
+/// use plait::html;
+///
+/// let class = Some("active");
+/// let disabled = false;
+///
+/// let html = html! {
+///     button(class?: class, disabled?: disabled) { "Click" }
+/// };
+///
+/// assert_eq!(html.to_string(), "<button class=\"active\">Click</button>");
+/// ```
+pub trait MaybeAttributeValue {
+    fn should_write(&self) -> bool;
 
-/// A trait for values that can be conditionally written as HTML attributes.
-///
-/// This trait provides a unified interface for handling HTML attributes that may or may not be rendered, depending on
-/// their value. It supports two main use cases:
-///
-/// - **Boolean attributes** (e.g., `disabled`, `checked`, `readonly`): These are rendered without a value when
-///   `true`, and omitted entirely when `false`.
-/// - **Optional attributes**: These are rendered with their value when `Some`, and omitted when `None`.
-///
-/// # Implementations
-///
-/// - `bool`: For boolean HTML attributes. When `true`, renders as ` name` (no value). When `false`, renders nothing.
-/// - `Option<T>` where `T: Display`: For optional attributes. When `Some(value)`, renders as ` name="value"`. When
-///   `None`, renders nothing.
-pub trait MaybeAttr {
-    /// Writes the attribute with HTML escaping applied to the value.
-    fn write_escaped(self, f: &mut HtmlFormatter<'_>, name: &str);
+    fn has_value(&self) -> bool;
 
-    /// Writes the attribute without HTML escaping.
-    fn write_raw(self, f: &mut HtmlFormatter<'_>, name: &str);
+    fn write(&self, w: &mut impl fmt::Write) -> fmt::Result;
 }
 
-impl MaybeAttr for bool {
-    fn write_escaped(self, f: &mut HtmlFormatter<'_>, name: &str) {
-        f.write_boolean_attribute(name, self);
+impl MaybeAttributeValue for bool {
+    fn should_write(&self) -> bool {
+        *self
     }
 
-    fn write_raw(self, f: &mut HtmlFormatter<'_>, name: &str) {
-        f.write_boolean_attribute(name, self);
+    fn has_value(&self) -> bool {
+        false
+    }
+
+    fn write(&self, _: &mut impl fmt::Write) -> fmt::Result {
+        Ok(())
     }
 }
 
-impl<T> MaybeAttr for Option<T>
+impl<T> MaybeAttributeValue for Option<T>
 where
-    T: Display,
+    T: fmt::Display,
 {
-    fn write_escaped(self, f: &mut HtmlFormatter<'_>, name: &str) {
-        if let Some(value) = self {
-            f.write_attribute_escaped(name, value);
-        }
+    fn should_write(&self) -> bool {
+        self.is_some()
     }
 
-    fn write_raw(self, f: &mut HtmlFormatter<'_>, name: &str) {
-        if let Some(value) = self {
-            f.write_attribute_raw(name, value);
+    fn has_value(&self) -> bool {
+        self.is_some()
+    }
+
+    fn write(&self, w: &mut impl fmt::Write) -> fmt::Result {
+        match self {
+            Some(value) => write!(w, "{value}"),
+            None => Ok(()),
         }
+    }
+}
+
+impl<T> MaybeAttributeValue for &T
+where
+    T: MaybeAttributeValue,
+{
+    fn should_write(&self) -> bool {
+        (**self).should_write()
+    }
+
+    fn has_value(&self) -> bool {
+        (**self).has_value()
+    }
+
+    fn write(&self, w: &mut impl fmt::Write) -> fmt::Result {
+        (**self).write(w)
     }
 }

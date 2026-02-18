@@ -7,17 +7,20 @@ escaping. It's designed for building server-side rendered HTML with minimal runt
 
 ## Quick Start
 
+The `html!` macro returns a value that implements `Display`(core::fmt::Display), so you can render it with
+`.to_string()`, `write!`, or `format!`.
+
 ```rust
-use plait::{html, render};
+use plait::html;
 
 let name = "World";
-let html = render(html! {
+let page = html! {
     div(class: "greeting") {
         h1 { "Hello, " (name) "!" }
     }
-});
+};
 
-assert_eq!(html, "<div class=\"greeting\"><h1>Hello, World!</h1></div>");
+assert_eq!(page.to_string(), "<div class=\"greeting\"><h1>Hello, World!</h1></div>");
 ```
 
 ## The `html!` Macro
@@ -25,9 +28,9 @@ assert_eq!(html, "<div class=\"greeting\"><h1>Hello, World!</h1></div>");
 The `html!` macro provides a concise syntax for writing HTML:
 
 ```rust
-use plait::{html, render};
+use plait::html;
 
-let html = render(html! {
+let page = html! {
     // Elements with attributes
     div(id: "main", class: "container") {
         // Nested elements
@@ -40,31 +43,75 @@ let html = render(html! {
         // Text content and expressions (escaped by default)
         p { "Static text and " (2 + 2) " dynamic values" }
     }
-});
+};
+
+assert_eq!(
+    page.to_string(),
+    "<div id=\"main\" class=\"container\">\
+     <h1>Title</h1>\
+     <br>\
+     <input type=\"text\" name=\"query\">\
+     <p>Static text and 4 dynamic values</p>\
+     </div>",
+);
+```
+
+### DOCTYPE
+
+Use `#doctype` to emit `<!DOCTYPE html>`:
+
+```rust
+use plait::html;
+
+let page = html! {
+    #doctype
+    html {
+        head { title { "My Page" } }
+        body { "Hello" }
+    }
+};
+
+assert!(page.to_string().starts_with("<!DOCTYPE html>"));
 ```
 
 ### Expressions
 
-Use parentheses to embed expressions. Content is automatically HTML-escaped:
+Use parentheses to embed Rust expressions. Content is automatically HTML-escaped:
 
 ```rust
-use plait::{html, render};
+use plait::html;
 
 let user_input = "<script>alert('xss')</script>";
-let html = render(html! { p { (user_input) } });
+let html = html! { p { (user_input) } };
 
-assert_eq!(html, "<p>&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;</p>");
+assert_eq!(html.to_string(), "<p>&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;</p>");
 ```
 
-For raw, unescaped content, prefix with `#`:
+For raw (unescaped) content, prefix with `#`:
 
 ```rust
-use plait::{html, render};
+use plait::html;
 
 let trusted_html = "<strong>Bold</strong>";
-let html = render(html! { div { #(trusted_html) } });
+let html = html! { div { #(trusted_html) } };
 
-assert_eq!(html, "<div><strong>Bold</strong></div>");
+assert_eq!(html.to_string(), "<div><strong>Bold</strong></div>");
+```
+
+### Let Bindings
+
+Use `let` bindings to compute intermediate values:
+
+```rust
+use plait::html;
+
+let world = " World";
+let html = html! {
+    let hello = world.len();
+    (hello) (world)
+};
+
+assert_eq!(html.to_string(), "6 World");
 ```
 
 ### Attributes
@@ -72,25 +119,38 @@ assert_eq!(html, "<div><strong>Bold</strong></div>");
 Attributes support several forms:
 
 ```rust
-use plait::{html, render};
+use plait::html;
 
 let class = Some("active");
 let disabled = true;
 
-let html = render(html! {
+let html = html! {
     // Boolean attribute (no value)
     button(checked) { "Checked" }
 
-    // Optional attribute with `?:` - included when Some or true
+    // Optional attribute with `?:` - included when Some or true, omitted when None or false
     div(class?: class) { "Has class" }
     button(disabled?: disabled) { "Disabled" }
 
-    // Attribute names with underscores become hyphens
-    div(hx_target: "body") {}  // renders as hx-target="body"
+    // Attribute names with underscores are converted to hyphens
+    div(hx_target: "body") {}
 
     // String attribute names for special characters
     div("@click": "handler()") {}
-});
+
+    // Raw (unescaped) attribute value with `#(...)`
+    div(class: #("<raw>")) {}
+};
+
+assert_eq!(
+    html.to_string(),
+    "<button checked>Checked</button>\
+     <div class=\"active\">Has class</div>\
+     <button disabled>Disabled</button>\
+     <div hx-target=\"body\"></div>\
+     <div @click=\"handler()\"></div>\
+     <div class=\"<raw>\"></div>",
+);
 ```
 
 ### Control Flow
@@ -98,14 +158,14 @@ let html = render(html! {
 Standard Rust control flow works naturally:
 
 ```rust
-use plait::{html, render};
+use plait::html;
 
 let show = true;
 let items = vec!["a", "b", "c"];
 let variant = "primary";
 let user = Some("Alice");
 
-let html = render(html! {
+let html = html! {
     // Conditionals
     if show {
         p { "Visible" }
@@ -113,7 +173,7 @@ let html = render(html! {
         p { "Hidden" }
     }
 
-    // if let with else
+    // if let
     if let Some(name) = user {
         p { "Welcome, " (name) "!" }
     } else {
@@ -133,15 +193,70 @@ let html = render(html! {
         "secondary" => button(class: "btn-secondary") { "Secondary" },
         _ => button { "Default" }
     }
-});
+};
+
+assert_eq!(
+    html.to_string(),
+    "<p>Visible</p>\
+     <p>Welcome, Alice!</p>\
+     <ul><li>a</li><li>b</li><li>c</li></ul>\
+     <button class=\"btn-primary\">Primary</button>",
+);
 ```
+
+### Nesting HTML Fragments
+
+Use `@(expr)` to embed a value that implements `HtmlDisplay` (such as another `html!` fragment) without
+escaping:
+
+```rust
+use plait::html;
+
+let inner = html! { p { "Hello World" } };
+let outer = html! { div { @(&inner) } };
+
+assert_eq!(outer.to_string(), "<div><p>Hello World</p></div>");
+```
+
+### Ownership and Borrowing
+
+`html!` expands into a `move` closure that implements `Fn` - it must be callable more than once (e.g. via
+`Display::fmt`(core::fmt::Display::fmt)). Values used in the template are moved into the closure, but because
+the closure is `Fn`, its captures live behind a shared reference and cannot be moved out.
+
+For `Copy` types like `&str`, `i32`, or `bool`, this is invisible - they are copied each time the closure runs.
+For owned types like `String` or `Vec`, you must explicitly borrow with `&` inside the template:
+
+```rust,compile_fail
+use plait::html;
+
+let name = String::from("World");
+
+// ERROR: cannot move `name` out of the `Fn` closure
+let fragment = html! { p { (name) } };
+```
+
+Use `&` to borrow the captured value instead:
+
+```rust
+use plait::html;
+
+let name = String::from("World");
+
+let fragment = html! { p { (&name) } };
+
+assert_eq!(fragment.to_string(), "<p>World</p>");
+```
+
+The same applies anywhere a value is used inside the template - element children, attribute values, loop
+iterators, etc. When in doubt, borrow with `&`.
 
 ## Components
 
 Create reusable components using the `component!` macro:
 
 ```rust
-use plait::{component, html, classes, render, ClassPart};
+use plait::{component, html, classes, ClassPart};
 
 component! {
     fn Button(class: impl ClassPart) {
@@ -151,44 +266,99 @@ component! {
     }
 }
 
-let html = render(html! {
-    // Component props before `;`, HTML attributes after
+let html = html! {
+    // Component props before `;`, extra HTML attributes after
     @Button(class: "primary"; id: "submit-btn", disabled?: false) {
         "Click me"
     }
-});
+};
 
-assert_eq!(html, "<button class=\"btn primary\" id=\"submit-btn\">Click me</button>");
+assert_eq!(html.to_string(), "<button class=\"btn primary\" id=\"submit-btn\">Click me</button>");
 ```
 
-Inside components, `#attrs` spreads additional HTML attributes and `#children` renders the component's children.
+Inside components, `#attrs` spreads additional HTML attributes passed at the call site and `#children` renders the
+component's child content.
 
-### Passing HTML as props
+### Passing HTML as Props
 
-Components can accept `html!` fragments as props using the `IntoHtml` trait:
+Components can accept `html!` fragments as props using the `HtmlDisplay` trait:
 
 ```rust
-use plait::{IntoHtml, component, html, render};
+use plait::{HtmlDisplay, component, html};
 
 component! {
-    fn Card(title: impl IntoHtml) {
+    fn Card(title: impl HtmlDisplay) {
         div(class: "card") {
-            h1 { (title) }
+            h1 { @(title) }
             #children
         }
     }
 }
 
-let html = render(html! {
+let html = html! {
     @Card(title: html! { span(class: "highlight") { "My Title" } }) {
         p { "Card content" }
     }
-});
+};
 
 assert_eq!(
-    html,
-    "<div class=\"card\"><h1><span class=\"highlight\">My Title</span></h1><p>Card content</p></div>"
+    html.to_string(),
+    "<div class=\"card\"><h1><span class=\"highlight\">My Title</span></h1><p>Card content</p></div>",
 );
+```
+
+### Component Syntax
+
+Components support generics, lifetimes, anonymous lifetimes, `impl Trait` parameters, and where clauses:
+
+```rust
+use plait::{HtmlDisplay, ClassPart, component, html, classes};
+
+// Anonymous lifetimes: `&str` is automatically desugared
+component! {
+    fn NavLink(href: &str, label: &str, class: impl ClassPart, active: bool) {
+        a(href: href, class: classes!(
+            "nav-link", class,
+            if *active { "active" } else { "" },
+        )) {
+            (label)
+        }
+    }
+}
+
+// Explicit generics with where clauses
+component! {
+    fn Card<H, F>(header: H, footer: F) where H: HtmlDisplay, F: HtmlDisplay {
+        div(class: "card") {
+            div(class: "header") { @(header) }
+            div(class: "body") { #children }
+            div(class: "footer") { @(footer) }
+        }
+    }
+}
+```
+
+### Prop Access
+
+Props are received as references inside the component body. Primitive types like `bool` and `u32` should be
+dereferenced with `*`:
+
+```rust
+use plait::{component, html};
+
+component! {
+    fn Badge(count: u32, visible: bool) {
+        if *visible {
+            span(class: "badge") { (count) }
+        }
+    }
+}
+
+let html = html! {
+    @Badge(count: 5, visible: true) {}
+};
+
+assert_eq!(html.to_string(), "<span class=\"badge\">5</span>");
 ```
 
 ## URL Safety
@@ -197,50 +367,39 @@ URL attributes (`href`, `src`, `action`, etc.) are automatically validated. Dang
 are stripped:
 
 ```rust
-use plait::{html, render};
+use plait::html;
 
-let html = render(html! {
+let html = html! {
     a(href: "javascript:alert('xss')") { "Click" }
-});
+};
 
-assert_eq!(html, "<a>Click</a>");  // href removed
+assert_eq!(html.to_string(), "<a>Click</a>");  // href removed
 ```
 
-Use `#(...)` for raw URLs when you trust the source.
+Safe schemes (`http`, `https`, `mailto`, `tel`) and relative paths are allowed. Use `#(...)` for raw URLs when
+you trust the source.
 
 ## Merging CSS Classes
 
-Use `classes!` to combine multiple class values into a single space-separated string. Empty strings and `None`
-values are automatically skipped:
+Use `classes!` to combine multiple class values into a single space-separated string. Any type implementing
+`ClassPart` can be used - empty strings and `None` values are automatically skipped:
 
 ```rust
-use plait::{component, html, classes, render};
+use plait::{component, html, classes, ClassPart};
 
 component! {
-    fn Button(variant: Option<&str>) {
-        button(class: classes!("btn", variant), #attrs) {
+    fn Button(class: impl ClassPart) {
+        button(class: classes!("btn", class), #attrs) {
             #children
         }
     }
 }
 
-let html = render(html! {
-    @Button(variant: Some("btn-primary")) { "Click me" }
-});
+let html = html! {
+    @Button(class: Some("btn-primary")) { "Click me" }
+};
 
-assert_eq!(html, "<button class=\"btn btn-primary\">Click me</button>");
-```
-
-## Performance
-
-For better performance when output size is predictable, use `render_with_capacity` to pre-allocate the buffer:
-
-```rust
-use plait::{html, render_with_capacity};
-
-let html = render_with_capacity(4096, html! {
-    div { "Content" }
-});
+assert_eq!(html.to_string(), "<button class=\"btn btn-primary\">Click me</button>");
 ```
 
 ## License

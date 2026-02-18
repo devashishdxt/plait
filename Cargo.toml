@@ -6,7 +6,7 @@ resolver = "3"
 convert_case = "0.10.0"
 hescape = "0.1.0"
 percent-encoding = "2.3.2"
-plait-macros = { version = "0.5.0", path = "./plait-macros" }
+plait-macros = { version = "0.6.0", path = "./plait-macros" }
 proc-macro2 = "1.0.105"
 quote = "1.0.44"
-syn = { version = "2.0.114", features = ["full", "visit-mut"] }
+syn = { version = "2.0.116", features = ["full", "visit-mut"] }

@@ -8,17 +8,13 @@ use crate::ast::{Attribute, Node};
 
 pub struct ComponentCall {
     pub path: Path,
-
     pub fields: Vec<ComponentCallField>,
-
     pub attributes: Vec<Attribute>,
-
     pub children: Vec<Node>,
 }
 
 pub struct ComponentCallField {
     pub ident: Ident,
-
     pub value: Expr,
 }
 
@@ -34,16 +30,20 @@ impl Parse for ComponentCall {
             let mut fields = Vec::new();
             let mut attributes = Vec::new();
 
-            while !content.is_empty() {
-                if content.peek(Semi) {
-                    let _ = content.parse::<Semi>()?;
-                    break;
-                }
+            if content.peek(Semi) {
+                let _ = content.parse::<Semi>()?;
+            } else {
+                while !content.is_empty() {
+                    fields.push(content.parse()?);
 
-                fields.push(content.parse()?);
-
-                if content.peek(Comma) {
-                    let _ = content.parse::<Comma>()?;
+                    if content.peek(Comma) {
+                        let _ = content.parse::<Comma>()?;
+                    } else if content.peek(Semi) {
+                        let _ = content.parse::<Semi>()?;
+                        break;
+                    } else if !content.is_empty() {
+                        return Err(content.error("expected ',' or ';' after a field"));
+                    }
                 }
             }
 
@@ -52,6 +52,8 @@ impl Parse for ComponentCall {
 
                 if content.peek(Comma) {
                     let _ = content.parse::<Comma>()?;
+                } else if !content.is_empty() {
+                    return Err(content.error("expected ',' after an attribute"));
                 }
             }
 

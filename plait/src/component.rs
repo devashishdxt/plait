@@ -1,119 +1,57 @@
-use crate::HtmlFormatter;
+use core::fmt;
 
-/// A trait for creating reusable HTML components.
+/// A reusable HTML component with typed props, attribute spreading, and child projection.
 ///
-/// Components encapsulate HTML structure and behavior, allowing you to define reusable UI elements with their own
-/// properties while still accepting additional attributes and children from the call site.
+/// This trait is automatically implemented by the [`component!`](crate::component) macro - you should not need to
+/// implement it manually. The generated implementation calls `html_fmt` with closures that render any extra HTML
+/// attributes (`#attrs`) and child content (`#children`) supplied at the call site.
 ///
-/// # Usage
+/// # Calling components
 ///
-/// Use the [`component!`](crate::component!) macro to define components:
+/// Components are invoked inside [`html!`](crate::html) with the `@Name(...)` syntax. Props and extra HTML attributes
+/// are separated by a semicolon - props come before the `;`, attributes after:
+///
+/// ```text
+/// @Button(class: "primary"; id: "btn", disabled?: true) { "Click" }
+/// //      ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/// //            props             HTML attributes
+/// ```
+///
+/// Extra HTML attributes are always optional. If none are needed, the semicolon can be omitted:
+///
+/// ```text
+/// @Button(class: "primary") { "Click" }
+/// ```
+///
+/// # Example
 ///
 /// ```rust
-/// use plait::{component, html, classes, render};
+/// use plait::{component, html, classes, ClassPart};
 ///
 /// component! {
-///     pub fn Button(class: Option<&str>, disabled: bool) {
-///         button(class: classes!("btn", class), disabled?: disabled, #attrs) {
+///     fn Card(class: impl ClassPart) {
+///         div(class: classes!("card", class), #attrs) {
 ///             #children
 ///         }
 ///     }
 /// }
 ///
-/// let html = render(html! {
-///     @Button(class: Some("btn-primary"), disabled: false; id: "button-id") {
-///         "Click me"
+/// let html = html! {
+///     @Card(class: "highlighted"; id: "card-1") {
+///         p { "Card body" }
 ///     }
-/// });
+/// };
 ///
-/// assert_eq!(html, r#"<button class="btn btn-primary" id="button-id">Click me</button>"#);
+/// assert_eq!(
+///     html.to_string(),
+///     "<div class=\"card highlighted\" id=\"card-1\"><p>Card body</p></div>",
+/// );
 /// ```
-///
-/// The `component!` macro generates a struct and implements this trait automatically. See
-/// [`component!`](crate::component!) for the full syntax reference.
 pub trait Component {
-    /// Renders the component to the given HTML formatter.
-    fn render(
-        self,
-        f: &mut HtmlFormatter<'_>,
-        attrs: impl FnOnce(&mut HtmlFormatter<'_>),
-        children: impl FnOnce(&mut HtmlFormatter<'_>),
-    );
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{HtmlFragment, classes, render};
-
-    use super::*;
-
-    struct Button<'a> {
-        class: &'a str,
-        disabled: bool,
-    }
-
-    impl<'a> Component for Button<'a> {
-        fn render(
-            self,
-            f: &mut HtmlFormatter<'_>,
-            attrs: impl FnOnce(&mut HtmlFormatter<'_>),
-            children: impl FnOnce(&mut HtmlFormatter<'_>),
-        ) {
-            f.open_tag("button");
-            f.write_attribute_escaped("class", classes!("btn", self.class));
-            f.write_boolean_attribute("disabled", self.disabled);
-            attrs(f);
-            f.close_start_tag();
-            children(f);
-            f.close_tag("button");
-        }
-    }
-
-    #[test]
-    fn test_button_component() {
-        let html = render(HtmlFragment(|f| {
-            Button {
-                class: "btn-primary",
-                disabled: false,
-            }
-            .render(
-                f,
-                |f| {
-                    f.write_attribute_escaped("id", "button-id");
-                },
-                |f| {
-                    f.write_html_escaped("Click me");
-                },
-            );
-        }));
-
-        assert_eq!(
-            html,
-            r#"<button class="btn btn-primary" id="button-id">Click me</button>"#
-        );
-    }
-
-    #[test]
-    fn test_button_component_disabled() {
-        let html = render(HtmlFragment(|f| {
-            Button {
-                class: "btn-primary",
-                disabled: true,
-            }
-            .render(
-                f,
-                |f| {
-                    f.write_attribute_escaped("id", "button-id");
-                },
-                |f| {
-                    f.write_html_escaped("Click me");
-                },
-            );
-        }));
-
-        assert_eq!(
-            html,
-            r#"<button class="btn btn-primary" disabled id="button-id">Click me</button>"#
-        );
-    }
+    fn html_fmt(
+        &self,
+        w: &mut (dyn fmt::Write + '_),
+        attrs: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+        children: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+    ) -> fmt::Result;
 }

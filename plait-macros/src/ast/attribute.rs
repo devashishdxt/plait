@@ -14,8 +14,8 @@ pub enum Attribute {
 
 pub struct NameValueAttribute {
     pub name: LitStr,
-    pub is_url: bool,
     pub is_maybe: bool,
+    pub is_url: bool,
     pub value: Option<AttributeValue>,
 }
 
@@ -63,8 +63,8 @@ impl Parse for NameValueAttribute {
         if input.is_empty() || input.peek(Comma) {
             return Ok(Self {
                 name,
-                is_url,
                 is_maybe: false,
+                is_url,
                 value: None,
             });
         }
@@ -80,8 +80,8 @@ impl Parse for NameValueAttribute {
 
         Ok(Self {
             name,
-            is_url,
             is_maybe,
+            is_url,
             value,
         })
     }
