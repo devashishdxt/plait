@@ -63,6 +63,12 @@ where
     }
 }
 
+impl HtmlDisplay for &str {
+    fn html_fmt(&self, w: &mut (dyn Write + '_)) -> fmt::Result {
+        write!(EscapeAdapter(w), "{}", self)
+    }
+}
+
 pub struct OpenStartTag {
     pub name: &'static str,
 }
