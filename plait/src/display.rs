@@ -54,6 +54,15 @@ pub trait HtmlDisplay {
     fn html_fmt(&self, w: &mut (dyn Write + '_)) -> fmt::Result;
 }
 
+impl<T> HtmlDisplay for &T
+where
+    T: HtmlDisplay,
+{
+    fn html_fmt(&self, w: &mut (dyn Write + '_)) -> fmt::Result {
+        (**self).html_fmt(w)
+    }
+}
+
 pub struct OpenStartTag {
     pub name: &'static str,
 }

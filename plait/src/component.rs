@@ -55,3 +55,17 @@ pub trait Component {
         children: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
     ) -> fmt::Result;
 }
+
+impl<T> Component for &T
+where
+    T: Component,
+{
+    fn html_fmt(
+        &self,
+        w: &mut (dyn fmt::Write + '_),
+        attrs: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+        children: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+    ) -> fmt::Result {
+        (**self).html_fmt(w, attrs, children)
+    }
+}
