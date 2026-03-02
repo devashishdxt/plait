@@ -1,44 +1,22 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    Ident,
-    parse::{Parse, ParseStream},
-};
+use syn::Ident;
 
-use crate::{
-    ast::ComponentDefinition,
-    codegen::{desugar::desugar_fields, statements::push_statements_for_node},
-};
-
-struct ComponentInput {
-    component: ComponentDefinition,
-    span: Span,
-}
-
-impl Parse for ComponentInput {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        Ok(ComponentInput {
-            component: input.parse()?,
-            span: input.span(),
-        })
-    }
-}
+use crate::{ast::ComponentDefinition, buffer::InnerBuffer, codegen::desugar::desugar_fields};
 
 pub fn component_impl(input: TokenStream) -> TokenStream {
-    let mut component_input: ComponentInput = match syn::parse2(input) {
+    let mut component_definition: ComponentDefinition = match syn::parse2(input) {
         Ok(a) => a,
         Err(e) => return e.to_compile_error(),
     };
 
     desugar_fields(
-        &mut component_input.component.fields,
-        &mut component_input.component.generics,
+        &mut component_definition.fields,
+        &mut component_definition.generics,
     );
 
-    let component_struct = component_struct(&component_input.component);
-
-    let component_component_impl =
-        component_component_impl(component_input.component, component_input.span);
+    let component_struct = component_struct(&component_definition);
+    let component_component_impl = component_component_impl(&component_definition);
 
     quote! {
         #component_struct
@@ -75,30 +53,33 @@ fn component_struct(component: &ComponentDefinition) -> TokenStream {
     out
 }
 
-fn component_component_impl(component: ComponentDefinition, span: Span) -> TokenStream {
+fn component_component_impl(component: &ComponentDefinition) -> TokenStream {
     let ident = &component.ident;
     let (impl_generics, type_generics, where_clause) = component.generics.split_for_impl();
 
     let deconstruct = component_struct_deconstruct(&component);
 
-    let write = Ident::new("__plait_write", span);
+    let writer = Ident::new("__plait_component", component.ident.span());
 
-    let mut statements = Vec::new();
+    let mut buffer = InnerBuffer::new(writer.clone());
+    buffer.push_block(&component.body);
+    buffer.flush_static_str();
 
-    for node in component.body {
-        push_statements_for_node(&mut statements, &write, node);
-    }
+    let statements = buffer.token_stream;
+    let size_hint = buffer.size_hint;
 
     quote! {
         impl #impl_generics ::plait::Component for #ident #type_generics #where_clause {
-            fn html_fmt(
+            const SIZE_HINT: usize = #size_hint;
+
+            fn render_component(
                 &self,
-                #write: &mut (dyn ::core::fmt::Write + '_),
+                #writer: &mut (dyn ::core::fmt::Write + '_),
                 attrs: impl ::core::ops::Fn(&mut (dyn ::core::fmt::Write + '_)) -> ::core::fmt::Result,
                 children: impl ::core::ops::Fn(&mut (dyn ::core::fmt::Write + '_)) -> ::core::fmt::Result,
             ) -> ::core::fmt::Result {
                 #deconstruct
-                #(#statements)*
+                #statements
 
                 Ok(())
             }

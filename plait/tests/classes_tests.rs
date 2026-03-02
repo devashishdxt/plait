@@ -1,13 +1,13 @@
-use plait::{ClassPart, classes, component, html};
+use plait::{Class, ToHtml, classes, component, html};
 
 #[test]
 fn test_classes_macro() {
     let html = html! {
-        button(class: classes!("btn", "btn-primary")) {}
+        button(class: &classes!("btn", "btn-primary")) {}
     };
 
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<button class=\"btn btn-primary\"></button>"
     )
 }
@@ -16,7 +16,7 @@ fn test_classes_macro() {
 fn test_classes_macro_in_component() {
     component! {
         fn Button<'a>(class: Option<&'a str>) {
-            button(class: classes!("btn", class)) {}
+            button(class: &classes!("btn", class)) {}
         }
     }
 
@@ -24,14 +24,14 @@ fn test_classes_macro_in_component() {
         @Button(class: None) {}
     };
 
-    assert_eq!(button_none.to_string(), "<button class=\"btn\"></button>");
+    assert_eq!(button_none.to_html(), "<button class=\"btn\"></button>");
 
     let button_some = html! {
         @Button(class: Some("btn-primary")) {}
     };
 
     assert_eq!(
-        button_some.to_string(),
+        button_some.to_html(),
         "<button class=\"btn btn-primary\"></button>"
     );
 }
@@ -39,8 +39,8 @@ fn test_classes_macro_in_component() {
 #[test]
 fn test_classes_macro_in_component_with_class_part() {
     component! {
-        fn Button<C>(class: C) where C: ClassPart {
-            button(class: classes!("btn", class)) {}
+        fn Button(class: impl Class) {
+            button(class: &classes!("btn", class)) {}
         }
     }
 
@@ -48,14 +48,14 @@ fn test_classes_macro_in_component_with_class_part() {
         @Button(class: None::<&str>) {}
     };
 
-    assert_eq!(button_none.to_string(), "<button class=\"btn\"></button>");
+    assert_eq!(button_none.to_html(), "<button class=\"btn\"></button>");
 
     let button_some = html! {
         @Button(class: Some("btn-primary")) {}
     };
 
     assert_eq!(
-        button_some.to_string(),
+        button_some.to_html(),
         "<button class=\"btn btn-primary\"></button>"
     );
 
@@ -64,7 +64,7 @@ fn test_classes_macro_in_component_with_class_part() {
     };
 
     assert_eq!(
-        button_classes.to_string(),
+        button_classes.to_html(),
         "<button class=\"btn btn-secondary btn-lg\"></button>"
     );
 }

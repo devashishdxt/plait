@@ -1,88 +1,111 @@
-use core::fmt;
+use std::fmt;
 
-/// A trait for values that may or may not produce an HTML attribute.
-///
-/// `MaybeAttributeValue` powers the `?:` (optional attribute) syntax in [`html!`](crate::html). When an attribute is
-/// written as `name?: value`, plait calls this trait to decide whether to render the attribute and, if so, whether it
-/// carries a value.
-///
-/// # Provided Implementations
-///
-/// | Type                                | Behaviour                                                                 |
-/// |-------------------------------------|---------------------------------------------------------------------------|
-/// | `bool`                              | `true` emits a boolean attribute (`disabled`), `false` omits it entirely. |
-/// | `Option<T: Display>`                | `Some(v)` emits `name="v"`, `None` omits the attribute.                   |
-/// | `&T` where `T: MaybeAttributeValue` | Delegates through the reference.                                          |
-///
-/// # Example
-///
-/// ```rust
-/// use plait::html;
-///
-/// let class = Some("active");
-/// let disabled = false;
-///
-/// let html = html! {
-///     button(class?: class, disabled?: disabled) { "Click" }
-/// };
-///
-/// assert_eq!(html.to_string(), "<button class=\"active\">Click</button>");
-/// ```
-pub trait MaybeAttributeValue {
-    fn should_write(&self) -> bool;
+use crate::{RenderEscaped, RenderRaw};
 
-    fn has_value(&self) -> bool;
-
-    fn write(&self, w: &mut impl fmt::Write) -> fmt::Result;
+pub trait RenderMaybeAttributeRaw {
+    fn render_maybe_attribute_raw(&self, name: &str, f: &mut (dyn fmt::Write + '_)) -> fmt::Result;
 }
 
-impl MaybeAttributeValue for bool {
-    fn should_write(&self) -> bool {
-        *self
-    }
-
-    fn has_value(&self) -> bool {
-        false
-    }
-
-    fn write(&self, _: &mut impl fmt::Write) -> fmt::Result {
-        Ok(())
-    }
-}
-
-impl<T> MaybeAttributeValue for Option<T>
+impl<T> RenderMaybeAttributeRaw for &T
 where
-    T: fmt::Display,
+    T: RenderMaybeAttributeRaw + ?Sized,
 {
-    fn should_write(&self) -> bool {
-        self.is_some()
+    fn render_maybe_attribute_raw(&self, name: &str, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+        (**self).render_maybe_attribute_raw(name, f)
     }
+}
 
-    fn has_value(&self) -> bool {
-        self.is_some()
+impl RenderMaybeAttributeRaw for bool {
+    fn render_maybe_attribute_raw(&self, name: &str, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+        if *self {
+            f.write_str(" ")?;
+            f.write_str(name)?;
+
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
+}
 
-    fn write(&self, w: &mut impl fmt::Write) -> fmt::Result {
+impl<T> RenderMaybeAttributeRaw for Option<T>
+where
+    T: RenderRaw,
+{
+    fn render_maybe_attribute_raw(&self, name: &str, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
         match self {
-            Some(value) => write!(w, "{value}"),
+            Some(value) => {
+                f.write_str(" ")?;
+                f.write_str(name)?;
+                f.write_str("=\"")?;
+                value.render_raw(f)?;
+                f.write_str("\"")?;
+
+                Ok(())
+            }
             None => Ok(()),
         }
     }
 }
 
-impl<T> MaybeAttributeValue for &T
+pub trait RenderMaybeAttributeEscaped {
+    fn render_maybe_attribute_escaped(
+        &self,
+        name: &str,
+        f: &mut (dyn fmt::Write + '_),
+    ) -> fmt::Result;
+}
+
+impl<T> RenderMaybeAttributeEscaped for &T
 where
-    T: MaybeAttributeValue,
+    T: RenderMaybeAttributeEscaped + ?Sized,
 {
-    fn should_write(&self) -> bool {
-        (**self).should_write()
+    fn render_maybe_attribute_escaped(
+        &self,
+        name: &str,
+        f: &mut (dyn fmt::Write + '_),
+    ) -> fmt::Result {
+        (**self).render_maybe_attribute_escaped(name, f)
     }
+}
 
-    fn has_value(&self) -> bool {
-        (**self).has_value()
+impl RenderMaybeAttributeEscaped for bool {
+    fn render_maybe_attribute_escaped(
+        &self,
+        name: &str,
+        f: &mut (dyn fmt::Write + '_),
+    ) -> fmt::Result {
+        if *self {
+            f.write_str(" ")?;
+            f.write_str(name)?;
+
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
+}
 
-    fn write(&self, w: &mut impl fmt::Write) -> fmt::Result {
-        (**self).write(w)
+impl<T> RenderMaybeAttributeEscaped for Option<T>
+where
+    T: RenderEscaped,
+{
+    fn render_maybe_attribute_escaped(
+        &self,
+        name: &str,
+        f: &mut (dyn fmt::Write + '_),
+    ) -> fmt::Result {
+        match self {
+            Some(value) => {
+                f.write_str(" ")?;
+                f.write_str(name)?;
+                f.write_str("=\"")?;
+                value.render_escaped(f)?;
+                f.write_str("\"")?;
+
+                Ok(())
+            }
+            None => Ok(()),
+        }
     }
 }

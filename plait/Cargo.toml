@@ -1,6 +1,6 @@
 [package]
 name = "plait"
-version = "0.7.2"
+version = "0.8.0"
 authors = ["Devashish Dixit <devashishdxt@gmail.com>"]
 license = "MIT/Apache-2.0"
 description = "A modern HTML templating library for Rust that embraces composition."
@@ -11,6 +11,18 @@ keywords = ["html", "template", "markup"]
 edition = "2024"
 
 [dependencies]
-hescape.workspace = true
-percent-encoding.workspace = true
+itoa.workspace = true
 plait-macros.workspace = true
+ryu.workspace = true
+
+[dev-dependencies]
+criterion = { version = "0.8.2", features = ["html_reports"] }
+markup = { version = "0.16.0", features = ["itoa"] }
+
+[[bench]]
+name = "big_table"
+harness = false
+
+[[bench]]
+name = "static_html"
+harness = false

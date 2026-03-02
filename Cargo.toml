@@ -5,8 +5,10 @@ resolver = "3"
 [workspace.dependencies]
 convert_case = "0.10.0"
 hescape = "0.1.0"
+itoa = "1.0.17"
 percent-encoding = "2.3.2"
-plait-macros = { version = "0.6.0", path = "./plait-macros" }
+plait-macros = { version = "0.8.0", path = "./plait-macros" }
 proc-macro2 = "1.0.105"
 quote = "1.0.44"
+ryu = "1.0.23"
 syn = { version = "2.0.116", features = ["full", "visit-mut"] }

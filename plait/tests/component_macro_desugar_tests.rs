@@ -1,4 +1,4 @@
-use plait::{ClassPart, HtmlDisplay, classes, component, html};
+use plait::{Class, RenderEscaped, ToHtml, classes, component, html};
 
 // Anonymous lifetime: &str desugared to &'plait_0 str
 component! {
@@ -14,13 +14,13 @@ fn test_anonymous_lifetime() {
     let html = html! {
         @AnonymousLifetimeButton(label: "Click me") {}
     };
-    assert_eq!(html.to_string(), "<button>Click me</button>");
+    assert_eq!(html.to_html(), "<button>Click me</button>");
 }
 
 // impl Trait desugared to generic type parameter
 component! {
-    pub fn ImplTraitButton(class: impl ClassPart) {
-        button(class: classes!("btn", class)) {
+    pub fn ImplTraitButton(class: impl Class) {
+        button(class: &classes!("btn", class)) {
             #children
         }
     }
@@ -34,7 +34,7 @@ fn test_impl_trait() {
         }
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<button class=\"btn primary\">Click</button>"
     );
 }
@@ -47,15 +47,15 @@ fn test_impl_trait_with_option() {
         }
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<button class=\"btn primary\">Click</button>"
     );
 }
 
 // Both anonymous lifetime and impl Trait together
 component! {
-    pub fn CombinedButton(id: &str, class: impl ClassPart) {
-        button(id: id, class: classes!("btn", class), #attrs) {
+    pub fn CombinedButton(id: &str, class: impl Class) {
+        button(id: id, class: &classes!("btn", class), #attrs) {
             #children
         }
     }
@@ -69,7 +69,7 @@ fn test_combined_lifetime_and_impl_trait() {
         }
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<button id=\"btn1\" class=\"btn primary\">Click</button>"
     );
 }
@@ -90,15 +90,15 @@ fn test_mixed_lifetimes() {
         @MixedLifetimes(explicit: "hello", anonymous: "world") {}
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div><span>hello</span><span>world</span></div>"
     );
 }
 
 // Multiple impl Trait parameters
 component! {
-    pub fn MultiImplTrait(class1: impl ClassPart, class2: impl ClassPart) {
-        div(class: classes!(class1, class2)) {
+    pub fn MultiImplTrait(class1: impl Class, class2: impl Class) {
+        div(class: &classes!(class1, class2)) {
             #children
         }
     }
@@ -111,13 +111,13 @@ fn test_multiple_impl_traits() {
             "content"
         }
     };
-    assert_eq!(html.to_string(), "<div class=\"foo bar\">content</div>");
+    assert_eq!(html.to_html(), "<div class=\"foo bar\">content</div>");
 }
 
 // Option<&str> with anonymous lifetime
 component! {
     pub fn OptionalRefButton(class: Option<&str>) {
-        button(class: classes!("btn", class)) {
+        button(class: &classes!("btn", class)) {
             #children
         }
     }
@@ -131,7 +131,7 @@ fn test_option_with_anonymous_lifetime() {
         }
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<button class=\"btn primary\">Click</button>"
     );
 }
@@ -143,14 +143,14 @@ fn test_option_with_anonymous_lifetime_none() {
             "Click"
         }
     };
-    assert_eq!(html.to_string(), "<button class=\"btn\">Click</button>");
+    assert_eq!(html.to_html(), "<button class=\"btn\">Click</button>");
 }
 
 // impl Trait with multiple bounds
 component! {
-    pub fn ImplMultiBound(content: impl HtmlDisplay + Send) {
+    pub fn ImplMultiBound(content: impl RenderEscaped + Send) {
         div {
-            @(content)
+            (content)
         }
     }
 }
@@ -160,12 +160,12 @@ fn test_impl_trait_multiple_bounds() {
     let html = html! {
         @ImplMultiBound(content: html! { span { "inner" } }) {}
     };
-    assert_eq!(html.to_string(), "<div><span>inner</span></div>");
+    assert_eq!(html.to_html(), "<div><span>inner</span></div>");
 }
 
 // Reference to impl Trait: &impl Display desugars to &'plait_0 P0
 component! {
-    pub fn RefImplTrait(label: &impl core::fmt::Display) {
+    pub fn RefImplTrait(label: &impl ::plait::RenderEscaped) {
         span {
             (label)
         }
@@ -177,7 +177,7 @@ fn test_ref_impl_trait() {
     let html = html! {
         @RefImplTrait(label: &"hello") {}
     };
-    assert_eq!(html.to_string(), "<span>hello</span>");
+    assert_eq!(html.to_html(), "<span>hello</span>");
 }
 
 #[test]
@@ -185,14 +185,14 @@ fn test_ref_impl_trait_with_number() {
     let html = html! {
         @RefImplTrait(label: &42) {}
     };
-    assert_eq!(html.to_string(), "<span>42</span>");
+    assert_eq!(html.to_html(), "<span>42</span>");
 }
 
 // Mixed explicit generics with impl Trait and anonymous lifetimes
 component! {
-    pub fn FullMix<T>(header: T, label: &str, class: impl ClassPart) where T: HtmlDisplay {
-        div(class: classes!("card", class)) {
-            h1 { @(header) }
+    pub fn FullMix<T>(header: T, label: &str, class: impl Class) where T: RenderEscaped {
+        div(class: &classes!("card", class)) {
+            h1 { (header) }
             span { (label) }
             #children
         }
@@ -207,7 +207,7 @@ fn test_full_mix() {
         }
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div class=\"card primary\"><h1>Title</h1><span>subtitle</span>body</div>"
     );
 }
@@ -221,11 +221,11 @@ component! {
         concrete: bool,
         count: u32,
         header: T,
-        class: impl ClassPart,
-        extra_class: impl ClassPart,
-    ) where T: HtmlDisplay {
-        div(class: classes!("card", class, extra_class), #attrs) {
-            h1 { @(header) }
+        class: impl Class,
+        extra_class: impl Class,
+    ) where T: RenderEscaped {
+        div(class: &classes!("card", class, extra_class), #attrs) {
+            h1 { (header) }
             span(class: "label") { (explicit_ref) " " (anonymous_ref) }
             if *concrete {
                 span(class: "badge") { (count) }
@@ -252,7 +252,7 @@ fn test_kitchen_sink_all_present() {
         }
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div class=\"card primary large\" id=\"card-1\">\
          <h1><strong>Title</strong></h1>\
          <span class=\"label\">hello world</span>\
@@ -276,7 +276,7 @@ fn test_kitchen_sink_concrete_false() {
         ) {}
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div class=\"card secondary\">\
          <h1>Simple</h1>\
          <span class=\"label\">a b</span>\
@@ -286,8 +286,8 @@ fn test_kitchen_sink_concrete_false() {
 
 // Explicit lifetime + anonymous lifetime + impl Trait + concrete, no where clause
 component! {
-    pub fn NavLink<'a>(href: &'a str, label: &str, class: impl ClassPart, active: bool) {
-        a(href: href, class: classes!("nav-link", class, if *active { "active" } else { "" })) {
+    pub fn NavLink<'a>(href: &'a str, label: &str, class: impl Class, active: bool) {
+        a(href: href, class: &classes!("nav-link", class, if *active { "active" } else { "" })) {
             (label)
         }
     }
@@ -299,7 +299,7 @@ fn test_nav_link_active() {
         @NavLink(href: "/home", label: "Home", class: "primary", active: true) {}
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<a href=\"/home\" class=\"nav-link primary active\">Home</a>"
     );
 }
@@ -310,7 +310,7 @@ fn test_nav_link_inactive() {
         @NavLink(href: "/about", label: "About", class: None::<&str>, active: false) {}
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<a href=\"/about\" class=\"nav-link\">About</a>"
     );
 }
@@ -321,12 +321,12 @@ component! {
         header: H,
         footer: F,
         label: &str,
-        class: impl ClassPart,
-    ) where H: HtmlDisplay, F: HtmlDisplay {
-        div(class: classes!("data-card", class)) {
-            div(class: "header") { @(header) }
+        class: impl Class,
+    ) where H: RenderEscaped, F: RenderEscaped {
+        div(class: &classes!("data-card", class)) {
+            div(class: "header") { (header) }
             div(class: "body") { (label) #children }
-            div(class: "footer") { @(footer) }
+            div(class: "footer") { (footer) }
         }
     }
 }
@@ -344,7 +344,7 @@ fn test_data_card() {
         }
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div class=\"data-card highlighted\">\
          <div class=\"header\"><h2>Stats</h2></div>\
          <div class=\"body\">Count: <strong>42</strong></div>\
@@ -360,11 +360,11 @@ component! {
         label_text: &str,
         field_type: &str,
         required: bool,
-        class: impl ClassPart,
-        label_class: impl ClassPart,
+        class: impl Class,
+        label_class: impl Class,
     ) {
-        div(class: classes!("form-field", class)) {
-            label(class: classes!("form-label", label_class)) { (label_text) }
+        div(class: &classes!("form-field", class)) {
+            label(class: &classes!("form-label", label_class)) { (label_text) }
             input(type: field_type, name: name, required?: required);
         }
     }
@@ -383,7 +383,7 @@ fn test_form_field_required() {
         ) {}
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div class=\"form-field mb-4\">\
          <label class=\"form-label font-bold\">Email</label>\
          <input type=\"email\" name=\"email\" required>\
@@ -404,7 +404,7 @@ fn test_form_field_optional() {
         ) {}
     };
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div class=\"form-field\">\
          <label class=\"form-label\">Bio</label>\
          <input type=\"text\" name=\"bio\">\

@@ -1,4 +1,4 @@
-use plait::html;
+use plait::{ToHtml, html};
 
 #[test]
 fn test_html_macro_text() {
@@ -6,7 +6,7 @@ fn test_html_macro_text() {
         "<div></div>"
     };
 
-    assert_eq!(html.to_string(), "&lt;div&gt;&lt;/div&gt;");
+    assert_eq!(html.to_html(), "&lt;div&gt;&lt;/div&gt;");
 }
 
 #[test]
@@ -17,7 +17,7 @@ fn test_html_macro_expr() {
         (text)
     };
 
-    assert_eq!(html.to_string(), "Hello World");
+    assert_eq!(html.to_html(), "Hello World");
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn test_html_macro_text_and_expr() {
         "Hello " (text)
     };
 
-    assert_eq!(html.to_string(), "Hello World")
+    assert_eq!(html.to_html(), "Hello World")
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn test_html_macro_raw_expr() {
         #("<div></div>")
     };
 
-    assert_eq!(html.to_string(), "<div></div>")
+    assert_eq!(html.to_html(), "<div></div>")
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_html_macro_doctype() {
         #doctype
     };
 
-    assert_eq!(html.to_string(), "<!DOCTYPE html>")
+    assert_eq!(html.to_html(), "<!DOCTYPE html>")
 }
 
 #[test]
@@ -55,10 +55,10 @@ fn test_html_macro_let_binding() {
 
     let html = html! {
         let hello = world.len();
-        (hello) (world)
+        (&hello) (world)
     };
 
-    assert_eq!(html.to_string(), "6 World")
+    assert_eq!(html.to_html(), "6 World")
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn test_html_macro_if_true() {
         }
     };
 
-    assert_eq!(html.to_string(), "Hello World")
+    assert_eq!(html.to_html(), "Hello World")
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn test_html_macro_if_false() {
         }
     };
 
-    assert!(html.to_string().is_empty())
+    assert!(html.to_html().is_empty())
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn test_html_macro_if_else_true() {
         }
     };
 
-    assert_eq!(html.to_string(), "Hello World")
+    assert_eq!(html.to_html(), "Hello World")
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn test_html_macro_if_else_false() {
         }
     };
 
-    assert_eq!(html.to_string(), "Goodbye World")
+    assert_eq!(html.to_html(), "Goodbye World")
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn test_html_macro_if_else_if() {
         }
     };
 
-    assert_eq!(html.to_string(), "<div></div>")
+    assert_eq!(html.to_html(), "<div></div>")
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn test_html_macro_if_let_else() {
         }
     };
 
-    assert_eq!(html.to_string(), "Hello<div></div>")
+    assert_eq!(html.to_html(), "Hello<div></div>")
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn test_html_macro_for_loop() {
         }
     };
 
-    assert_eq!(html.to_string(), "<li>1</li><li>2</li><li>3</li>")
+    assert_eq!(html.to_html(), "<li>1</li><li>2</li><li>3</li>")
 }
 
 #[test]
@@ -182,7 +182,7 @@ fn test_html_macro_match() {
         }
     };
 
-    assert_eq!(html.to_string(), "<div></div>")
+    assert_eq!(html.to_html(), "<div></div>")
 }
 
 #[test]
@@ -196,7 +196,7 @@ fn test_html_macro_element() {
         }
     };
 
-    assert_eq!(html.to_string(), "<div>Hello <span>World</span></div>")
+    assert_eq!(html.to_html(), "<div>Hello <span>World</span></div>")
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn test_html_macro_void_element() {
         }
     };
 
-    assert_eq!(html.to_string(), "<div><br></div>")
+    assert_eq!(html.to_html(), "<div><br></div>")
 }
 
 #[test]
@@ -222,7 +222,7 @@ fn test_html_macro_custom_element() {
     };
 
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<custom-element>Hello <span>World</span></custom-element>"
     )
 }
@@ -235,11 +235,11 @@ fn test_html_macro_nested() {
 
     let outer = html! {
         div {
-            #(&inner)
+            (&inner)
         }
     };
 
-    assert_eq!(outer.to_string(), "<div><p>Hello World</p></div>");
+    assert_eq!(outer.to_html(), "<div><p>Hello World</p></div>");
 }
 
 #[test]
@@ -250,7 +250,7 @@ fn test_html_macro_attribute_text() {
         }
     };
 
-    assert_eq!(html.to_string(), "<div class=\"btn\">Hello World</div>")
+    assert_eq!(html.to_html(), "<div class=\"btn\">Hello World</div>")
 }
 
 #[test]
@@ -259,7 +259,7 @@ fn test_html_macro_attribute_str_name() {
         div("@click": "callFunction()") {}
     };
 
-    assert_eq!(html.to_string(), "<div @click=\"callFunction()\"></div>")
+    assert_eq!(html.to_html(), "<div @click=\"callFunction()\"></div>")
 }
 
 #[test]
@@ -268,7 +268,7 @@ fn test_html_macro_attribute_ident_rename() {
         div(hx_target: "body") {}
     };
 
-    assert_eq!(html.to_string(), "<div hx-target=\"body\"></div>")
+    assert_eq!(html.to_html(), "<div hx-target=\"body\"></div>")
 }
 
 #[test]
@@ -280,7 +280,7 @@ fn test_html_macro_attribute_raw_expr() {
     };
 
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div class=\"<div></div>\">Hello World</div>"
     )
 }
@@ -293,7 +293,7 @@ fn test_html_macro_attribute_without_value() {
         }
     };
 
-    assert_eq!(html.to_string(), "<button checked>Hello World</button>")
+    assert_eq!(html.to_html(), "<button checked>Hello World</button>")
 }
 
 #[test]
@@ -301,12 +301,12 @@ fn test_html_macro_optional_attribute_some() {
     let class = Some("btn");
 
     let html = html! {
-        div(class?: class) {
+        div(class?: &class) {
             "Hello World"
         }
     };
 
-    assert_eq!(html.to_string(), "<div class=\"btn\">Hello World</div>")
+    assert_eq!(html.to_html(), "<div class=\"btn\">Hello World</div>")
 }
 
 #[test]
@@ -314,12 +314,12 @@ fn test_html_macro_optional_attribute_none() {
     let class = None::<&str>;
 
     let html = html! {
-        div(class?: class) {
+        div(class?: &class) {
             "Hello World"
         }
     };
 
-    assert_eq!(html.to_string(), "<div>Hello World</div>")
+    assert_eq!(html.to_html(), "<div>Hello World</div>")
 }
 
 #[test]
@@ -330,7 +330,7 @@ fn test_html_macro_optional_attribute_text() {
         }
     };
 
-    assert_eq!(html.to_string(), "<div class=\"btn\">Hello World</div>")
+    assert_eq!(html.to_html(), "<div class=\"btn\">Hello World</div>")
 }
 
 #[test]
@@ -338,13 +338,13 @@ fn test_html_macro_optional_attribute_raw_expr() {
     let class = Some("<div></div>");
 
     let html = html! {
-        div(class?: #(class)) {
+        div(class?: #(&class)) {
             "Hello World"
         }
     };
 
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<div class=\"<div></div>\">Hello World</div>"
     )
 }
@@ -354,12 +354,12 @@ fn test_html_macro_boolean_attribute_true() {
     let checked = true;
 
     let html = html! {
-        button(checked?: checked) {
+        button(checked?: &checked) {
             "Hello World"
         }
     };
 
-    assert_eq!(html.to_string(), "<button checked>Hello World</button>")
+    assert_eq!(html.to_html(), "<button checked>Hello World</button>")
 }
 
 #[test]
@@ -367,12 +367,12 @@ fn test_html_macro_boolean_attribute_false() {
     let checked = false;
 
     let html = html! {
-        button(checked?: checked) {
+        button(checked?: &checked) {
             "Hello World"
         }
     };
 
-    assert_eq!(html.to_string(), "<button>Hello World</button>")
+    assert_eq!(html.to_html(), "<button>Hello World</button>")
 }
 
 #[test]
@@ -381,109 +381,13 @@ fn test_html_macro_multiple_attributes() {
     let active = false;
 
     let html = html! {
-        button(id: "button", checked, class?: class, type: "submit", active?: active) {
+        button(id: "button", checked, class?: (&class), type: "submit", active?: (&active)) {
             "Hello World"
         }
     };
 
     assert_eq!(
-        html.to_string(),
+        html.to_html(),
         "<button id=\"button\" checked class=\"btn\" type=\"submit\">Hello World</button>"
-    )
-}
-
-#[test]
-fn test_html_macro_url_attribute_text() {
-    let html = html! {
-        a(href: "https://example.com") {
-            "Hello World"
-        }
-    };
-
-    assert_eq!(
-        html.to_string(),
-        "<a href=\"https://example.com\">Hello World</a>"
-    )
-}
-
-#[test]
-fn test_html_macro_url_attribute_expr() {
-    let url = "https://example.com";
-
-    let html = html! {
-        a(href: url) {
-            "Hello World"
-        }
-    };
-
-    assert_eq!(
-        html.to_string(),
-        "<a href=\"https://example.com\">Hello World</a>"
-    )
-}
-
-#[test]
-fn test_html_macro_optional_url_attribute_text() {
-    let html = html! {
-        a(href?: "https://example.com") {
-            "Hello World"
-        }
-    };
-
-    assert_eq!(
-        html.to_string(),
-        "<a href=\"https://example.com\">Hello World</a>"
-    )
-}
-
-#[test]
-fn test_html_macro_optional_url_attribute_some() {
-    let url = Some("https://example.com");
-
-    let html = html! {
-        a(href?: url) {
-            "Hello World"
-        }
-    };
-
-    assert_eq!(
-        html.to_string(),
-        "<a href=\"https://example.com\">Hello World</a>"
-    )
-}
-
-#[test]
-fn test_html_macro_optional_url_attribute_none() {
-    let html = html! {
-        a(href?: None::<&str>) {
-            "Hello World"
-        }
-    };
-
-    assert_eq!(html.to_string(), "<a>Hello World</a>")
-}
-
-#[test]
-fn test_html_macro_url_attribute_invalid() {
-    let html = html! {
-        a(href: "javascript:alert('XSS')") {
-            "Hello World"
-        }
-    };
-
-    assert_eq!(html.to_string(), "<a>Hello World</a>")
-}
-
-#[test]
-fn test_html_macro_url_attribute_raw_expr() {
-    let html = html! {
-        a(href: #("javascript:alert('XSS')")) {
-            "Hello World"
-        }
-    };
-
-    assert_eq!(
-        html.to_string(),
-        "<a href=\"javascript:alert('XSS')\">Hello World</a>"
     )
 }

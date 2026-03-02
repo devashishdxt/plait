@@ -7,10 +7,11 @@ mod if_condition;
 mod let_binding;
 mod match_expression;
 mod node;
+mod template;
 
 pub use self::{
     attribute::{Attribute, AttributeValue, NameValueAttribute},
-    component_call::ComponentCall,
+    component_call::{ComponentCall, ComponentCallField},
     component_definition::{ComponentDefinition, ComponentDefinitionField},
     element::Element,
     for_loop::ForLoop,
@@ -18,4 +19,5 @@ pub use self::{
     let_binding::LetBinding,
     match_expression::{MatchArm, MatchExpression},
     node::Node,
+    template::Template,
 };

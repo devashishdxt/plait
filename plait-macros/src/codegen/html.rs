@@ -1,48 +1,15 @@
-use proc_macro2::{Span, TokenStream};
-use quote::quote;
-use syn::{
-    Ident,
-    parse::{Parse, ParseStream},
-};
+use proc_macro2::TokenStream;
 
-use crate::{ast::Node, codegen::statements::push_statements_for_node};
-
-struct HtmlInput {
-    nodes: Vec<Node>,
-    span: Span,
-}
-
-impl Parse for HtmlInput {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let span = input.span();
-        let mut nodes = Vec::new();
-
-        while !input.is_empty() {
-            nodes.push(input.parse()?);
-        }
-
-        Ok(Self { nodes, span })
-    }
-}
+use crate::{ast::Template, buffer::Buffer};
 
 pub fn html_impl(input: TokenStream) -> TokenStream {
-    let html_input: HtmlInput = match syn::parse2(input) {
+    let mut buffer = Buffer::new(&input);
+
+    let html_input: Template = match syn::parse2(input) {
         Ok(a) => a,
         Err(e) => return e.to_compile_error(),
     };
 
-    let write = Ident::new("__plait_write", html_input.span);
-    let mut statements = Vec::new();
-
-    for node in html_input.nodes {
-        push_statements_for_node(&mut statements, &write, node);
-    }
-
-    quote! {
-        ::plait::HtmlFragment(move |#write: &mut (dyn core::fmt::Write + '_)| {
-            #(#statements)*
-
-            Ok(())
-        })
-    }
+    buffer.push_block(&html_input.nodes);
+    buffer.finalize_html()
 }

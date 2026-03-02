@@ -1,43 +1,45 @@
-use core::fmt;
+use std::fmt;
 
-use crate::display::HtmlDisplay;
+use crate::{Html, RenderEscaped, ToHtml};
 
-/// The concrete type returned by the [`html!`](crate::html) macro.
-///
-/// `HtmlFragment` wraps a closure that writes HTML into any [`fmt::Write`] sink. It implements both
-/// [`Display`](core::fmt::Display) and [`HtmlDisplay`], so it can be rendered with `.to_string()` / `write!` and
-/// embedded in other templates via `@(expr)`.
-///
-/// You do not need to construct `HtmlFragment` directly - it is created by [`html!`](crate::html).
-///
-/// # Example
-///
-/// ```rust
-/// use plait::html;
-///
-/// let inner = html! { em { "world" } };
-/// let outer = html! { p { "hello " @(&inner) } };
-///
-/// assert_eq!(outer.to_string(), "<p>hello <em>world</em></p>");
-/// ```
-pub struct HtmlFragment<F>(pub F)
-where
-    F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result;
-
-impl<F> HtmlDisplay for HtmlFragment<F>
+pub struct HtmlFragment<F>
 where
     F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
 {
-    fn html_fmt(&self, w: &mut (dyn fmt::Write + '_)) -> fmt::Result {
-        (self.0)(w)
+    f: F,
+    size_hint: usize,
+}
+
+impl<F> HtmlFragment<F>
+where
+    F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+{
+    #[doc(hidden)]
+    pub fn new(f: F, size_hint: usize) -> Self {
+        HtmlFragment { f, size_hint }
+    }
+
+    fn to_string(&self) -> String {
+        let mut buffer = String::with_capacity(self.size_hint);
+        (self.f)(&mut buffer).unwrap();
+        buffer
     }
 }
 
-impl<F> fmt::Display for HtmlFragment<F>
+impl<F> RenderEscaped for HtmlFragment<F>
 where
     F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        (self.0)(f)
+    fn render_escaped(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+        (self.f)(f)
+    }
+}
+
+impl<F> ToHtml for HtmlFragment<F>
+where
+    F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+{
+    fn to_html(&self) -> Html {
+        Html::new_unchecked(self.to_string())
     }
 }
