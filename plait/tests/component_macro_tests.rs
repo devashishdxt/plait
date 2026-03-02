@@ -2,7 +2,7 @@ use plait::{RenderEscaped, ToHtml, classes, component, html};
 
 component! {
     pub fn Button<'a>(class: Option<&'a str>) {
-        button(class: &classes!("btn", class), #attrs) {
+        button(class: classes!("btn", class), #attrs) {
             #children
         }
     }
@@ -24,7 +24,7 @@ fn test_button() {
     let disabled = false;
 
     let html = html! {
-        @Button(class: None; id: "btn1", disabled?: &disabled) {
+        @Button(class: None; id: "btn1", disabled?: disabled) {
             "Click me"
         }
     };
@@ -40,7 +40,7 @@ fn test_card() {
     let disabled = true;
 
     let html = html! {
-        @Card(title: html! { span { "My card" } }; disabled?: &disabled) {
+        @Card(title: html! { span { "My card" } }; disabled?: disabled) {
             "Click me"
         }
     };

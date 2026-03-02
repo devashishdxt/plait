@@ -20,7 +20,7 @@ fn test_anonymous_lifetime() {
 // impl Trait desugared to generic type parameter
 component! {
     pub fn ImplTraitButton(class: impl Class) {
-        button(class: &classes!("btn", class)) {
+        button(class: classes!("btn", class)) {
             #children
         }
     }
@@ -55,7 +55,7 @@ fn test_impl_trait_with_option() {
 // Both anonymous lifetime and impl Trait together
 component! {
     pub fn CombinedButton(id: &str, class: impl Class) {
-        button(id: id, class: &classes!("btn", class), #attrs) {
+        button(id: id, class: classes!("btn", class), #attrs) {
             #children
         }
     }
@@ -98,7 +98,7 @@ fn test_mixed_lifetimes() {
 // Multiple impl Trait parameters
 component! {
     pub fn MultiImplTrait(class1: impl Class, class2: impl Class) {
-        div(class: &classes!(class1, class2)) {
+        div(class: classes!(class1, class2)) {
             #children
         }
     }
@@ -117,7 +117,7 @@ fn test_multiple_impl_traits() {
 // Option<&str> with anonymous lifetime
 component! {
     pub fn OptionalRefButton(class: Option<&str>) {
-        button(class: &classes!("btn", class)) {
+        button(class: classes!("btn", class)) {
             #children
         }
     }
@@ -163,7 +163,7 @@ fn test_impl_trait_multiple_bounds() {
     assert_eq!(html.to_html(), "<div><span>inner</span></div>");
 }
 
-// Reference to impl Trait: &impl Display desugars to &'plait_0 P0
+// Reference to impl Trait: &impl RenderEscaped desugars to &'plait_0 P0
 component! {
     pub fn RefImplTrait(label: &impl ::plait::RenderEscaped) {
         span {
@@ -191,7 +191,7 @@ fn test_ref_impl_trait_with_number() {
 // Mixed explicit generics with impl Trait and anonymous lifetimes
 component! {
     pub fn FullMix<T>(header: T, label: &str, class: impl Class) where T: RenderEscaped {
-        div(class: &classes!("card", class)) {
+        div(class: classes!("card", class)) {
             h1 { (header) }
             span { (label) }
             #children
@@ -224,7 +224,7 @@ component! {
         class: impl Class,
         extra_class: impl Class,
     ) where T: RenderEscaped {
-        div(class: &classes!("card", class, extra_class), #attrs) {
+        div(class: classes!("card", class, extra_class), #attrs) {
             h1 { (header) }
             span(class: "label") { (explicit_ref) " " (anonymous_ref) }
             if *concrete {
@@ -287,7 +287,7 @@ fn test_kitchen_sink_concrete_false() {
 // Explicit lifetime + anonymous lifetime + impl Trait + concrete, no where clause
 component! {
     pub fn NavLink<'a>(href: &'a str, label: &str, class: impl Class, active: bool) {
-        a(href: href, class: &classes!("nav-link", class, if *active { "active" } else { "" })) {
+        a(href: href, class: classes!("nav-link", class, if *active { "active" } else { "" })) {
             (label)
         }
     }
@@ -363,8 +363,8 @@ component! {
         class: impl Class,
         label_class: impl Class,
     ) {
-        div(class: &classes!("form-field", class)) {
-            label(class: &classes!("form-label", label_class)) { (label_text) }
+        div(class: classes!("form-field", class)) {
+            label(class: classes!("form-label", label_class)) { (label_text) }
             input(type: field_type, name: name, required?: required);
         }
     }

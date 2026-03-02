@@ -55,7 +55,7 @@ fn test_html_macro_let_binding() {
 
     let html = html! {
         let hello = world.len();
-        (&hello) (world)
+        (hello) (world)
     };
 
     assert_eq!(html.to_html(), "6 World")
@@ -235,7 +235,7 @@ fn test_html_macro_nested() {
 
     let outer = html! {
         div {
-            (&inner)
+            (inner)
         }
     };
 
@@ -301,7 +301,7 @@ fn test_html_macro_optional_attribute_some() {
     let class = Some("btn");
 
     let html = html! {
-        div(class?: &class) {
+        div(class?: class) {
             "Hello World"
         }
     };
@@ -314,7 +314,7 @@ fn test_html_macro_optional_attribute_none() {
     let class = None::<&str>;
 
     let html = html! {
-        div(class?: &class) {
+        div(class?: class) {
             "Hello World"
         }
     };
@@ -338,7 +338,7 @@ fn test_html_macro_optional_attribute_raw_expr() {
     let class = Some("<div></div>");
 
     let html = html! {
-        div(class?: #(&class)) {
+        div(class?: #(class)) {
             "Hello World"
         }
     };
@@ -354,7 +354,7 @@ fn test_html_macro_boolean_attribute_true() {
     let checked = true;
 
     let html = html! {
-        button(checked?: &checked) {
+        button(checked?: checked) {
             "Hello World"
         }
     };
@@ -367,7 +367,7 @@ fn test_html_macro_boolean_attribute_false() {
     let checked = false;
 
     let html = html! {
-        button(checked?: &checked) {
+        button(checked?: checked) {
             "Hello World"
         }
     };
@@ -381,7 +381,7 @@ fn test_html_macro_multiple_attributes() {
     let active = false;
 
     let html = html! {
-        button(id: "button", checked, class?: (&class), type: "submit", active?: (&active)) {
+        button(id: "button", checked, class?: class, type: "submit", active?: active) {
             "Hello World"
         }
     };

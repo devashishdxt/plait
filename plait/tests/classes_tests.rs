@@ -3,7 +3,7 @@ use plait::{Class, ToHtml, classes, component, html};
 #[test]
 fn test_classes_macro() {
     let html = html! {
-        button(class: &classes!("btn", "btn-primary")) {}
+        button(class: classes!("btn", "btn-primary")) {}
     };
 
     assert_eq!(
@@ -16,7 +16,7 @@ fn test_classes_macro() {
 fn test_classes_macro_in_component() {
     component! {
         fn Button<'a>(class: Option<&'a str>) {
-            button(class: &classes!("btn", class)) {}
+            button(class: classes!("btn", class)) {}
         }
     }
 
@@ -40,7 +40,7 @@ fn test_classes_macro_in_component() {
 fn test_classes_macro_in_component_with_class_part() {
     component! {
         fn Button(class: impl Class) {
-            button(class: &classes!("btn", class)) {}
+            button(class: classes!("btn", class)) {}
         }
     }
 

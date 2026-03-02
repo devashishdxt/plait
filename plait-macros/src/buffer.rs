@@ -440,7 +440,7 @@ impl InnerBuffer {
 
         let writer = &self.writer;
         self.token_stream.extend(quote! {
-            ::plait::RenderEscaped::render_escaped(#expr, #writer)?;
+            ::plait::RenderEscaped::render_escaped(&#expr, #writer)?;
         });
 
         self.has_dynamic_value = true;
@@ -451,7 +451,7 @@ impl InnerBuffer {
 
         let writer = &self.writer;
         self.token_stream.extend(quote! {
-            ::plait::RenderRaw::render_raw(#expr, #writer)?;
+            ::plait::RenderRaw::render_raw(&#expr, #writer)?;
         });
 
         self.has_dynamic_value = true;
@@ -593,7 +593,7 @@ impl InnerBuffer {
                                     let name = &name_value_attribute.name;
 
                                     self.token_stream.extend(quote! {
-                                        ::plait::RenderMaybeAttributeEscaped::render_maybe_attribute_escaped(#expr, #name, #writer)?;
+                                        ::plait::RenderMaybeAttributeEscaped::render_maybe_attribute_escaped(&#expr, #name, #writer)?;
                                     });
 
                                     self.has_dynamic_value = true;
@@ -606,7 +606,7 @@ impl InnerBuffer {
                                 let name = &name_value_attribute.name;
 
                                 self.token_stream.extend(quote! {
-                                    ::plait::RenderMaybeAttributeEscaped::render_maybe_attribute_escaped(#expr, #name, #writer)?;
+                                    ::plait::RenderMaybeAttributeEscaped::render_maybe_attribute_escaped(&#expr, #name, #writer)?;
                                 });
 
                                 self.has_dynamic_value = true;
@@ -657,7 +657,7 @@ impl InnerBuffer {
                                     let name = &name_value_attribute.name;
 
                                     self.token_stream.extend(quote! {
-                                        ::plait::RenderMaybeAttributeRaw::render_maybe_attribute_raw(#expr, #name, #writer)?;
+                                        ::plait::RenderMaybeAttributeRaw::render_maybe_attribute_raw(&#expr, #name, #writer)?;
                                     });
 
                                     self.has_dynamic_value = true;
@@ -670,7 +670,7 @@ impl InnerBuffer {
                                 let name = &name_value_attribute.name;
 
                                 self.token_stream.extend(quote! {
-                                    ::plait::RenderMaybeAttributeRaw::render_maybe_attribute_raw(#expr, #name, #writer)?;
+                                    ::plait::RenderMaybeAttributeRaw::render_maybe_attribute_raw(&#expr, #name, #writer)?;
                                 });
 
                                 self.has_dynamic_value = true;
