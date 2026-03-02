@@ -16,13 +16,9 @@ plait-macros.workspace = true
 ryu.workspace = true
 
 [dev-dependencies]
-criterion = { version = "0.8.2", features = ["html_reports"] }
-markup = { version = "0.16.0", features = ["itoa"] }
+criterion.workspace = true
+markup.workspace = true
 
 [[bench]]
 name = "big_table"
-harness = false
-
-[[bench]]
-name = "static_html"
 harness = false
