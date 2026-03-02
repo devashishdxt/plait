@@ -243,7 +243,7 @@ impl InnerBuffer {
             Some(ElseBranch::If(else_if_branch)) => {
                 let mut else_buffer = self.create_inner();
 
-                else_buffer.push_if_condition(&else_if_branch);
+                else_buffer.push_if_condition(else_if_branch);
                 else_buffer.flush_static_str();
 
                 let then_branch = then_buffer.token_stream;
@@ -355,7 +355,7 @@ impl InnerBuffer {
             self.push_attribute(attribute);
         }
 
-        self.static_str.push_str(">");
+        self.static_str.push('>');
 
         if !is_void_element(&tag.value()) {
             self.push_block(children);
@@ -510,7 +510,7 @@ impl InnerBuffer {
                             },
                         }
 
-                        self.static_str.push_str("\"");
+                        self.static_str.push('"');
                     }
                     (true, None) => {}
                     (true, Some(value)) => match value {
@@ -518,25 +518,25 @@ impl InnerBuffer {
                             self.static_str
                                 .push_str(&format!(" {}=\"", name_value_attribute.name.value()));
                             self.push_lit_str_escaped(lit_str);
-                            self.static_str.push_str("\"");
+                            self.static_str.push('"');
                         }
                         AttributeValue::LitChar(lit_char) => {
                             self.static_str
                                 .push_str(&format!(" {}=\"", name_value_attribute.name.value()));
                             self.push_lit_char_escaped(lit_char);
-                            self.static_str.push_str("\"");
+                            self.static_str.push('"');
                         }
                         AttributeValue::LitInt(lit_int) => {
                             self.static_str
                                 .push_str(&format!(" {}=\"", name_value_attribute.name.value()));
                             self.push_lit_int(lit_int);
-                            self.static_str.push_str("\"");
+                            self.static_str.push('"');
                         }
                         AttributeValue::LitFloat(lit_float) => {
                             self.static_str
                                 .push_str(&format!(" {}=\"", name_value_attribute.name.value()));
                             self.push_lit_float(lit_float);
-                            self.static_str.push_str("\"");
+                            self.static_str.push('"');
                         }
                         AttributeValue::LitBool(lit_bool) => {
                             if lit_bool.value {
@@ -552,7 +552,7 @@ impl InnerBuffer {
                                         name_value_attribute.name.value()
                                     ));
                                     self.push_lit_str_escaped(lit_str);
-                                    self.static_str.push_str("\"");
+                                    self.static_str.push('"');
                                 }
                                 Lit::Char(lit_char) => {
                                     self.static_str.push_str(&format!(
@@ -560,7 +560,7 @@ impl InnerBuffer {
                                         name_value_attribute.name.value()
                                     ));
                                     self.push_lit_char_escaped(lit_char);
-                                    self.static_str.push_str("\"");
+                                    self.static_str.push('"');
                                 }
                                 Lit::Int(lit_int) => {
                                     self.static_str.push_str(&format!(
@@ -568,7 +568,7 @@ impl InnerBuffer {
                                         name_value_attribute.name.value()
                                     ));
                                     self.push_lit_int(lit_int);
-                                    self.static_str.push_str("\"");
+                                    self.static_str.push('"');
                                 }
                                 Lit::Float(lit_float) => {
                                     self.static_str.push_str(&format!(
@@ -576,7 +576,7 @@ impl InnerBuffer {
                                         name_value_attribute.name.value()
                                     ));
                                     self.push_lit_float(lit_float);
-                                    self.static_str.push_str("\"");
+                                    self.static_str.push('"');
                                 }
                                 Lit::Bool(lit_bool) => {
                                     if lit_bool.value {

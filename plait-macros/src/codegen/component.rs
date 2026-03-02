@@ -57,7 +57,7 @@ fn component_component_impl(component: &ComponentDefinition) -> TokenStream {
     let ident = &component.ident;
     let (impl_generics, type_generics, where_clause) = component.generics.split_for_impl();
 
-    let deconstruct = component_struct_deconstruct(&component);
+    let deconstruct = component_struct_deconstruct(component);
 
     let writer = Ident::new("__plait_component", component.ident.span());
 

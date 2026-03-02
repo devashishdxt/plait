@@ -38,14 +38,10 @@ where
     F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
 {
     #[doc(hidden)]
+    /// Creates a new `HtmlFragment` with the given function and size hint. This is used internally by the `html!`
+    /// macro.
     pub fn new(f: F, size_hint: usize) -> Self {
         HtmlFragment { f, size_hint }
-    }
-
-    fn to_string(&self) -> String {
-        let mut buffer = String::with_capacity(self.size_hint);
-        (self.f)(&mut buffer).unwrap();
-        buffer
     }
 }
 
@@ -63,7 +59,10 @@ where
     F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
 {
     fn to_html(&self) -> Html {
-        Html::new_unchecked(self.to_string())
+        let mut buffer = String::with_capacity(self.size_hint);
+        (self.f)(&mut buffer).unwrap();
+
+        Html::new_unchecked(buffer)
     }
 }
 
