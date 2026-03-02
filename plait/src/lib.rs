@@ -1,3 +1,4 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
 //! A modern, type-safe HTML templating library for Rust that embraces composition.
 //!
 //! Plait lets you write HTML directly in Rust using the [`html!`] macro, with compile-time validation, automatic
@@ -321,6 +322,82 @@
 //!
 //! Values passed to [`classes!`] must implement the [`Class`] trait. This is implemented for `&str`, `Option<T>` where
 //! `T: Class`, and [`Classes<T>`](Classes).
+//!
+//! # Web framework integrations
+//!
+//! Plait provides optional integrations with popular Rust web frameworks. Both [`Html`] and [`HtmlFragment`] can be
+//! returned directly from request handlers when the corresponding feature is enabled.
+//!
+//! Enable integrations by adding the feature flag to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! plait = { version = "0.8", features = ["axum"] }
+//! ```
+//!
+//! Available features: `actix-web`, `axum`, `rocket`.
+//!
+//! ## axum
+//!
+//! [`Html`] and [`HtmlFragment`] implement
+//! [`IntoResponse`](https://docs.rs/axum/latest/axum/response/trait.IntoResponse.html):
+//!
+//! ```ignore
+//! use axum::{Router, routing::get};
+//! use plait::{html, ToHtml};
+//!
+//! async fn index() -> plait::Html {
+//!     html! {
+//!         h1 { "Hello from plait!" }
+//!     }.to_html()
+//! }
+//!
+//! let app = Router::new().route("/", get(index));
+//! ```
+//!
+//! You can also return an [`HtmlFragment`] directly without calling `.to_html()`:
+//!
+//! ```ignore
+//! async fn index() -> impl axum::response::IntoResponse {
+//!     plait::html! {
+//!         h1 { "Hello from plait!" }
+//!     }
+//! }
+//! ```
+//!
+//! ## actix-web
+//!
+//! [`Html`] and [`HtmlFragment`] implement
+//! [`Responder`](https://docs.rs/actix-web/latest/actix_web/trait.Responder.html):
+//!
+//! ```ignore
+//! use actix_web::{App, HttpServer, get};
+//! use plait::{html, ToHtml};
+//!
+//! #[get("/")]
+//! async fn index() -> plait::Html {
+//!     html! {
+//!         h1 { "Hello from plait!" }
+//!     }.to_html()
+//! }
+//! ```
+//!
+//! ## rocket
+//!
+//! [`Html`] and [`HtmlFragment`] implement
+//! [`Responder`](https://docs.rs/rocket/latest/rocket/response/trait.Responder.html):
+//!
+//! ```ignore
+//! use rocket::get;
+//! use plait::{html, ToHtml};
+//!
+//! #[get("/")]
+//! fn index() -> plait::Html {
+//!     html! {
+//!         h1 { "Hello from plait!" }
+//!     }.to_html()
+//! }
+//! ```
 mod classes;
 mod component;
 mod fragment;

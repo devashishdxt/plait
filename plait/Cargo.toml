@@ -10,7 +10,19 @@ categories = ["template-engine", "web-programming"]
 keywords = ["html", "template", "markup"]
 edition = "2024"
 
+[features]
+default = []
+actix-web = ["dep:actix-web"]
+axum = ["dep:axum"]
+rocket = ["dep:rocket"]
+
 [dependencies]
+actix-web = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
 itoa.workspace = true
 plait-macros.workspace = true
+rocket = { workspace = true, optional = true }
 ryu.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true

@@ -66,6 +66,62 @@ where
     }
 }
 
+#[cfg(feature = "actix-web")]
+mod actix_web {
+    use ::actix_web::{HttpRequest, HttpResponse, Responder};
+
+    use super::*;
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "actix-web")))]
+    impl<F> Responder for HtmlFragment<F>
+    where
+        F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+    {
+        type Body = String;
+
+        fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
+            self.to_html().respond_to(req)
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
+mod axum {
+    use ::axum::response::{IntoResponse, Response};
+
+    use super::*;
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
+    impl<F> IntoResponse for HtmlFragment<F>
+    where
+        F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+    {
+        fn into_response(self) -> Response {
+            self.to_html().into_response()
+        }
+    }
+}
+
+#[cfg(feature = "rocket")]
+mod rocket {
+    use ::rocket::{
+        Request,
+        response::{Responder, Result},
+    };
+
+    use super::*;
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "rocket")))]
+    impl<'r, 'o: 'r, F> Responder<'r, 'o> for HtmlFragment<F>
+    where
+        F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+    {
+        fn respond_to(self, request: &'r Request<'_>) -> Result<'o> {
+            self.to_html().respond_to(request)
+        }
+    }
+}
+
 /// Marker trait for types that represent partial HTML content.
 ///
 /// `PartialHtml` is a subtrait of [`RenderEscaped`] intended for use as a component prop bound when the prop should

@@ -81,6 +81,53 @@ impl RenderRaw for Html {
     }
 }
 
+#[cfg(feature = "actix-web")]
+mod actix_web {
+    use ::actix_web::{HttpRequest, HttpResponse, Responder};
+
+    use super::*;
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "actix-web")))]
+    impl Responder for Html {
+        type Body = String;
+
+        fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
+            ::actix_web::web::Html::new(self).respond_to(req)
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
+mod axum {
+    use ::axum::response::{IntoResponse, Response};
+
+    use super::*;
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "axum")))]
+    impl IntoResponse for Html {
+        fn into_response(self) -> Response {
+            ::axum::response::Html(String::from(self)).into_response()
+        }
+    }
+}
+
+#[cfg(feature = "rocket")]
+mod rocket {
+    use ::rocket::{
+        Request,
+        response::{Responder, Result, content::RawHtml},
+    };
+
+    use super::*;
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "rocket")))]
+    impl<'r, 'o: 'r> Responder<'r, 'o> for Html {
+        fn respond_to(self, request: &'r Request<'_>) -> Result<'o> {
+            RawHtml(String::from(self)).respond_to(request)
+        }
+    }
+}
+
 /// Trait for types that can be rendered into an [`Html`] value.
 ///
 /// This is the primary way to materialize a template into an owned HTML string. The [`html!`](crate::html) macro

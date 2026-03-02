@@ -23,3 +23,7 @@ _readme-plait:
 _readme-plait-macros:
     cargo readme > README.md
     sed -i '' 's/\[\(`[^`]*`\)\]/\1/g' README.md
+
+# Builds documentation
+doc:
+    cargo +nightly doc --open --no-deps --all-features
