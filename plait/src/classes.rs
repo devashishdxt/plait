@@ -2,9 +2,25 @@ use std::fmt;
 
 use crate::RenderEscaped;
 
+/// Trait for values that can be used as CSS class names in the [`classes!`](crate::classes) macro.
+///
+/// Implementors define whether the class should be skipped (e.g. empty string or `None`) and how to render the class
+/// name. Multiple `Class` values are joined with spaces.
+///
+/// # Built-in implementations
+///
+/// | Type                                 | Behavior                                              |
+/// |--------------------------------------|-------------------------------------------------------|
+/// | `&str`                               | Skipped if empty; otherwise HTML-escaped              |
+/// | `Option<T: Class>`                   | Skipped if `None`; otherwise delegates to inner value |
+/// | `&T` where `T: Class`                | Delegates to inner value                              |
+/// | Tuples of `Class` (up to 8 elements) | Renders non-skipped elements separated by spaces      |
+/// | `Classes<T: Class>`                  | Renders non-skipped elements separated by spaces      |
 pub trait Class {
+    /// Returns `true` if this class should be omitted from the output.
     fn should_skip(&self) -> bool;
 
+    /// Writes the class name(s) into `f`.
     fn render_escaped(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result;
 }
 
@@ -50,6 +66,23 @@ impl Class for str {
     }
 }
 
+/// A wrapper that turns a tuple of [`Class`] values into a single renderable class string.
+///
+/// You typically create this via the [`classes!`](crate::classes) macro rather than constructing it directly:
+///
+/// ```
+/// use plait::{classes, html, ToHtml};
+///
+/// let extra: Option<&str> = Some("highlighted");
+///
+/// let frag = html! {
+///     div(class: classes!("base", "primary", extra)) {}
+/// };
+/// assert_eq!(frag.to_html(), r#"<div class="base primary highlighted"></div>"#);
+/// ```
+///
+/// `Classes<T>` implements [`RenderEscaped`] and [`Display`](std::fmt::Display), so it can be used anywhere a
+/// renderable value is expected.
 pub struct Classes<T>(pub T);
 
 impl<T> Class for Classes<T>
@@ -119,6 +152,26 @@ impl_class_for_tuple!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5);
 impl_class_for_tuple!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6);
 impl_class_for_tuple!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 
+/// Combines multiple CSS class values into a single [`Classes`] value.
+///
+/// Empty strings and `None` values are automatically skipped. Non-skipped values are
+/// separated by spaces.
+///
+/// Each argument must implement the [`Class`] trait.
+///
+/// # Example
+///
+/// ```
+/// use plait::{classes, html, ToHtml};
+///
+/// let active: Option<&str> = Some("active");
+/// let hidden: Option<&str> = None;
+///
+/// let frag = html! {
+///     div(class: classes!("btn", "btn-primary", active, hidden)) {}
+/// };
+/// assert_eq!(frag.to_html(), r#"<div class="btn btn-primary active"></div>"#);
+/// ```
 #[macro_export]
 macro_rules! classes {
     ($($class:expr),+ $(,)?) => {

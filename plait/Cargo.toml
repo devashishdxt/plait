@@ -14,11 +14,3 @@ edition = "2024"
 itoa.workspace = true
 plait-macros.workspace = true
 ryu.workspace = true
-
-[dev-dependencies]
-criterion.workspace = true
-markup.workspace = true
-
-[[bench]]
-name = "big_table"
-harness = false

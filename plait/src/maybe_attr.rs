@@ -2,7 +2,19 @@ use std::fmt;
 
 use crate::{RenderEscaped, RenderRaw};
 
+/// Trait for conditionally rendering an HTML attribute with a raw (unescaped) value.
+///
+/// Used by the `attr?: #(expr)` syntax in [`html!`](crate::html). The attribute is only rendered when the value is
+/// "present" (e.g. `Some(_)` or `true`).
+///
+/// # Built-in implementations
+///
+/// | Type                   | Behavior                                                            |
+/// |------------------------|---------------------------------------------------------------------|
+/// | `bool`                 | Renders the attribute name (no value) if `true`; nothing if `false` |
+/// | `Option<T: RenderRaw>` | Renders `name="value"` if `Some`; nothing if `None`                 |
 pub trait RenderMaybeAttributeRaw {
+    /// Conditionally writes ` name` or ` name="value"` into `f`.
     fn render_maybe_attribute_raw(&self, name: &str, f: &mut (dyn fmt::Write + '_)) -> fmt::Result;
 }
 
@@ -48,7 +60,19 @@ where
     }
 }
 
+/// Trait for conditionally rendering an HTML attribute with an escaped value.
+///
+/// Used by the `attr?: expr` syntax in [`html!`](crate::html). The attribute is only rendered when the value is
+/// "present" (e.g. `Some(_)` or `true`).
+///
+/// # Built-in implementations
+///
+/// | Type                       | Behavior                                                            |
+/// |----------------------------|---------------------------------------------------------------------|
+/// | `bool`                     | Renders the attribute name (no value) if `true`; nothing if `false` |
+/// | `Option<T: RenderEscaped>` | Renders `name="value"` (escaped) if `Some`; nothing if `None`       |
 pub trait RenderMaybeAttributeEscaped {
+    /// Conditionally writes ` name` or ` name="value"` (escaped) into `f`.
     fn render_maybe_attribute_escaped(
         &self,
         name: &str,

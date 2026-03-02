@@ -66,12 +66,9 @@ fn component_component_impl(component: &ComponentDefinition) -> TokenStream {
     buffer.flush_static_str();
 
     let statements = buffer.token_stream;
-    let size_hint = buffer.size_hint;
 
     quote! {
         impl #impl_generics ::plait::Component for #ident #type_generics #where_clause {
-            const SIZE_HINT: usize = #size_hint;
-
             fn render_component(
                 &self,
                 #writer: &mut (dyn ::core::fmt::Write + '_),

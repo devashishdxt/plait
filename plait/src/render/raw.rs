@@ -1,6 +1,17 @@
 use std::{borrow::Cow, fmt};
 
+/// Trait for types that can be rendered as raw (unescaped) text.
+///
+/// When a value is embedded in an [`html!`](crate::html) template with `#(expr)`, it is rendered through this trait
+/// **without** HTML escaping. Use this when the value is already known to be safe HTML.
+///
+/// # Built-in implementations
+///
+/// The same types that implement [`RenderEscaped`](crate::RenderEscaped) also implement `RenderRaw`. For `&str` and
+/// `String`, the output is written verbatim (no escaping). Numeric and boolean types produce the same output as their
+/// escaped counterparts since they contain no HTML-special characters.
 pub trait RenderRaw {
+    /// Writes the raw (unescaped) representation of `self` into `f`.
     fn render_raw(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result;
 }
 
@@ -58,7 +69,7 @@ where
     }
 }
 
-macro_rules! impl_render_escaped_itoa {
+macro_rules! impl_render_raw_itoa {
     ($ty:ty) => {
         impl RenderRaw for $ty {
             #[inline]
@@ -70,20 +81,20 @@ macro_rules! impl_render_escaped_itoa {
     };
 }
 
-impl_render_escaped_itoa!(usize);
-impl_render_escaped_itoa!(isize);
-impl_render_escaped_itoa!(u8);
-impl_render_escaped_itoa!(u16);
-impl_render_escaped_itoa!(u32);
-impl_render_escaped_itoa!(u64);
-impl_render_escaped_itoa!(u128);
-impl_render_escaped_itoa!(i8);
-impl_render_escaped_itoa!(i16);
-impl_render_escaped_itoa!(i32);
-impl_render_escaped_itoa!(i64);
-impl_render_escaped_itoa!(i128);
+impl_render_raw_itoa!(usize);
+impl_render_raw_itoa!(isize);
+impl_render_raw_itoa!(u8);
+impl_render_raw_itoa!(u16);
+impl_render_raw_itoa!(u32);
+impl_render_raw_itoa!(u64);
+impl_render_raw_itoa!(u128);
+impl_render_raw_itoa!(i8);
+impl_render_raw_itoa!(i16);
+impl_render_raw_itoa!(i32);
+impl_render_raw_itoa!(i64);
+impl_render_raw_itoa!(i128);
 
-macro_rules! impl_render_escaped_ryu {
+macro_rules! impl_render_raw_ryu {
     ($ty:ty) => {
         impl RenderRaw for $ty {
             #[inline]
@@ -95,5 +106,5 @@ macro_rules! impl_render_escaped_ryu {
     };
 }
 
-impl_render_escaped_ryu!(f32);
-impl_render_escaped_ryu!(f64);
+impl_render_raw_ryu!(f32);
+impl_render_raw_ryu!(f64);

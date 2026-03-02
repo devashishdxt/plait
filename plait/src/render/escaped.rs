@@ -2,7 +2,26 @@ use std::{borrow::Cow, fmt};
 
 use crate::utils::escape_html_to;
 
+/// Trait for types that can be rendered as HTML-escaped text.
+///
+/// When a value is embedded in an [`html!`](crate::html) template with `(expr)`, it is rendered through this trait,
+/// which ensures HTML-special characters (`&`, `<`, `>`, `"`, `'`) are escaped.
+///
+/// # Built-in implementations
+///
+/// | Type                                                       | Behavior                                   |
+/// |------------------------------------------------------------|--------------------------------------------|
+/// | `&str`, `String`                                           | HTML-escaped output                        |
+/// | `bool`                                                     | `"true"` or `"false"`                      |
+/// | `Option<T: RenderEscaped>`                                 | Renders inner value, or nothing for `None` |
+/// | `Cow<'_, T: RenderEscaped>`                                | Delegates to inner value                   |
+/// | Integer types (`u8`–`u128`, `i8`–`i128`, `usize`, `isize`) | Formatted via [`itoa`]                     |
+/// | Float types (`f32`, `f64`)                                 | Formatted via [`ryu`]                      |
+/// | [`Html`](crate::Html)                                      | Written as-is (already escaped)            |
+/// | [`HtmlFragment`](crate::HtmlFragment)                      | Renders the fragment                       |
+/// | `&T` where `T: RenderEscaped`                              | Delegates to inner value                   |
 pub trait RenderEscaped {
+    /// Writes the HTML-escaped representation of `self` into `f`.
     fn render_escaped(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result;
 }
 
