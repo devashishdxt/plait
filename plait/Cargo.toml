@@ -11,18 +11,20 @@ keywords = ["html", "template", "markup"]
 edition = "2024"
 
 [features]
-default = []
+default = ["itoa", "ryu"]
 actix-web = ["dep:actix-web"]
 axum = ["dep:axum"]
+itoa = ["dep:itoa"]
 rocket = ["dep:rocket"]
+ryu = ["dep:ryu"]
 
 [dependencies]
 actix-web = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
-itoa.workspace = true
+itoa = { workspace = true, optional = true }
 plait-macros.workspace = true
 rocket = { workspace = true, optional = true }
-ryu.workspace = true
+ryu = { workspace = true, optional = true }
 
 [package.metadata.docs.rs]
 all-features = true

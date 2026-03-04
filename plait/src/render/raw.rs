@@ -71,11 +71,20 @@ where
 
 macro_rules! impl_render_raw_itoa {
     ($ty:ty) => {
+        #[cfg(feature = "itoa")]
         impl RenderRaw for $ty {
             #[inline]
             fn render_raw(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
                 let mut buffer = itoa::Buffer::new();
                 f.write_str(buffer.format(*self))
+            }
+        }
+
+        #[cfg(not(feature = "itoa"))]
+        impl RenderRaw for $ty {
+            #[inline]
+            fn render_raw(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+                write!(f, "{}", *self)
             }
         }
     };
@@ -96,11 +105,20 @@ impl_render_raw_itoa!(i128);
 
 macro_rules! impl_render_raw_ryu {
     ($ty:ty) => {
+        #[cfg(feature = "ryu")]
         impl RenderRaw for $ty {
             #[inline]
             fn render_raw(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
                 let mut buffer = ryu::Buffer::new();
                 f.write_str(buffer.format(*self))
+            }
+        }
+
+        #[cfg(not(feature = "ryu"))]
+        impl RenderRaw for $ty {
+            #[inline]
+            fn render_raw(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+                write!(f, "{}", *self)
             }
         }
     };

@@ -81,11 +81,20 @@ where
 
 macro_rules! impl_render_escaped_itoa {
     ($ty:ty) => {
+        #[cfg(feature = "itoa")]
         impl RenderEscaped for $ty {
             #[inline]
             fn render_escaped(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
                 let mut buffer = itoa::Buffer::new();
                 f.write_str(buffer.format(*self))
+            }
+        }
+
+        #[cfg(not(feature = "itoa"))]
+        impl RenderEscaped for $ty {
+            #[inline]
+            fn render_escaped(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+                write!(f, "{}", *self)
             }
         }
     };
@@ -106,11 +115,20 @@ impl_render_escaped_itoa!(i128);
 
 macro_rules! impl_render_escaped_ryu {
     ($ty:ty) => {
+        #[cfg(feature = "ryu")]
         impl RenderEscaped for $ty {
             #[inline]
             fn render_escaped(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
                 let mut buffer = ryu::Buffer::new();
                 f.write_str(buffer.format(*self))
+            }
+        }
+
+        #[cfg(not(feature = "ryu"))]
+        impl RenderEscaped for $ty {
+            #[inline]
+            fn render_escaped(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+                write!(f, "{}", *self)
             }
         }
     };
