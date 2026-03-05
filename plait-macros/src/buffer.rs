@@ -349,7 +349,13 @@ impl InnerBuffer {
             children,
         } = element;
 
-        self.static_str.push_str(&format!("<{}", tag.value()));
+        let tag_str = tag.value();
+
+        if tag_str == "html" && !self.static_str.ends_with("<!DOCTYPE html>") {
+            self.static_str.push_str("<!DOCTYPE html>");
+        }
+
+        self.static_str.push_str(&format!("<{}", tag_str));
 
         for attribute in attributes {
             self.push_attribute(attribute);
@@ -357,9 +363,9 @@ impl InnerBuffer {
 
         self.static_str.push('>');
 
-        if !is_void_element(&tag.value()) {
+        if !is_void_element(&tag_str) {
             self.push_block(children);
-            self.static_str.push_str(&format!("</{}>", tag.value()));
+            self.static_str.push_str(&format!("</{}>", tag_str));
         }
     }
 
