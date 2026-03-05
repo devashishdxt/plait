@@ -50,6 +50,22 @@ fn test_html_macro_doctype() {
 }
 
 #[test]
+fn test_html_macro_auto_doctype() {
+    let html = html! {
+        #doctype
+        html {}
+    };
+
+    assert_eq!(html.to_html(), "<!DOCTYPE html><html></html>");
+
+    let html = html! {
+        html {}
+    };
+
+    assert_eq!(html.to_html(), "<!DOCTYPE html><html></html>");
+}
+
+#[test]
 fn test_html_macro_let_binding() {
     let world = " World";
 
