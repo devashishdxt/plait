@@ -1,5 +1,5 @@
 use syn::{
-    braced, parenthesized,
+    Ident, braced, parenthesized,
     parse::{Parse, ParseStream},
     token::{At, Colon, Comma, Paren, Semi},
 };
@@ -70,9 +70,14 @@ impl Parse for ComponentCall {
 
 impl Parse for ComponentCallField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let ident = input.parse()?;
-        let _ = input.parse::<Colon>()?;
-        let value = input.parse()?;
+        let ident: Ident = input.parse()?;
+
+        let value = if input.peek(Colon) {
+            let _ = input.parse::<Colon>()?;
+            input.parse().map(Some)
+        } else {
+            Ok(None)
+        }?;
 
         Ok(Self { ident, value })
     }
