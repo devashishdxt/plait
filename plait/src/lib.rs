@@ -268,6 +268,44 @@
 //! In the component call, props appear before the `;`, and extra HTML attributes appear after. The component body uses
 //! `#attrs` to spread those extra attributes and `#children` to render the child content.
 //!
+//! ## Shorthand props
+//!
+//! When a variable has the same name as a component prop, you can use shorthand syntax - just like Rust struct
+//! initialization:
+//!
+//! ```
+//! # use plait::{component, html, ToHtml, classes, Class};
+//! # component! {
+//! #     pub fn Button(class: impl Class) {
+//! #         button(class: classes!("btn", class), #attrs) {
+//! #             #children
+//! #         }
+//! #     }
+//! # }
+//! let class = "primary";
+//!
+//! // These are equivalent:
+//! let a = html! { @Button(class: class) { "Click" } };
+//! let b = html! { @Button(class) { "Click" } };
+//!
+//! assert_eq!(a.to_html(), b.to_html());
+//! ```
+//!
+//! Shorthand and explicit props can be mixed freely:
+//!
+//! ```
+//! # use plait::{component, html, ToHtml};
+//! # component! {
+//! #     pub fn UserCard(name: &str, role: &str) {
+//! #         div { span { (name) } " - " span { (role) } }
+//! #     }
+//! # }
+//! let name = "Alice";
+//! let html = html! { @UserCard(name, role: "Admin") {} };
+//!
+//! assert_eq!(html.to_html(), "<div><span>Alice</span> - <span>Admin</span></div>");
+//! ```
+//!
 //! ## Passing fragments as props
 //!
 //! Use [`PartialHtml`] as a prop bound to accept [`html!`] output as a component prop:
@@ -502,6 +540,29 @@ pub use plait_macros::html;
 /// ```
 ///
 /// Props go before `;`, extra HTML attributes go after.
+///
+/// ## Shorthand props
+///
+/// When a variable has the same name as a prop, you can omit the value - just like Rust struct initialization
+/// shorthand:
+///
+/// ```
+/// # use plait::{component, html, classes, Class, ToHtml};
+/// # component! {
+/// #     pub fn Button(class: impl Class) {
+/// #         button(class: classes!("btn", class), #attrs) {
+/// #             #children
+/// #         }
+/// #     }
+/// # }
+/// let class = "primary";
+///
+/// let html = html! {
+///     @Button(class) { "Click" }
+/// };
+///
+/// assert_eq!(html.to_html(), "<button class=\"btn primary\">Click</button>");
+/// ```
 pub use plait_macros::component;
 
 pub use self::{

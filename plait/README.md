@@ -243,6 +243,30 @@ assert_eq!(
 In the component call, props appear before the `;`, and extra HTML attributes appear after. The component body uses
 `#attrs` to spread those extra attributes and `#children` to render the child content.
 
+### Shorthand props
+
+When a variable has the same name as a component prop, you can use shorthand syntax - just like Rust struct
+initialization:
+
+```rust
+let class = "primary";
+
+// These are equivalent:
+let a = html! { @Button(class: class) { "Click" } };
+let b = html! { @Button(class) { "Click" } };
+
+assert_eq!(a.to_html(), b.to_html());
+```
+
+Shorthand and explicit props can be mixed freely:
+
+```rust
+let name = "Alice";
+let html = html! { @UserCard(name, role: "Admin") {} };
+
+assert_eq!(html.to_html(), "<div><span>Alice</span> - <span>Admin</span></div>");
+```
+
 ### Passing fragments as props
 
 Use `PartialHtml` as a prop bound to accept `html!` output as a component prop:
@@ -294,6 +318,82 @@ assert_eq!(frag.to_html(), r#"<div class="base primary"></div>"#);
 
 Values passed to `classes!` must implement the `Class` trait. This is implemented for `&str`, `Option<T>` where
 `T: Class`, and `Classes<T>`(Classes).
+
+## Web framework integrations
+
+Plait provides optional integrations with popular Rust web frameworks. Both `Html` and `HtmlFragment` can be
+returned directly from request handlers when the corresponding feature is enabled.
+
+Enable integrations by adding the feature flag to your `Cargo.toml`:
+
+```toml
+[dependencies]
+plait = { version = "0.8", features = ["axum"] }
+```
+
+Available features: `actix-web`, `axum`, `rocket`.
+
+### axum
+
+`Html` and `HtmlFragment` implement
+`IntoResponse`(https://docs.rs/axum/latest/axum/response/trait.IntoResponse.html):
+
+```rust
+use axum::{Router, routing::get};
+use plait::{html, ToHtml};
+
+async fn index() -> plait::Html {
+    html! {
+        h1 { "Hello from plait!" }
+    }.to_html()
+}
+
+let app = Router::new().route("/", get(index));
+```
+
+You can also return an `HtmlFragment` directly without calling `.to_html()`:
+
+```rust
+async fn index() -> impl axum::response::IntoResponse {
+    plait::html! {
+        h1 { "Hello from plait!" }
+    }
+}
+```
+
+### actix-web
+
+`Html` and `HtmlFragment` implement
+`Responder`(https://docs.rs/actix-web/latest/actix_web/trait.Responder.html):
+
+```rust
+use actix_web::{App, HttpServer, get};
+use plait::{html, ToHtml};
+
+#[get("/")]
+async fn index() -> plait::Html {
+    html! {
+        h1 { "Hello from plait!" }
+    }.to_html()
+}
+```
+
+### rocket
+
+`Html` and `HtmlFragment` implement
+`Responder`(https://docs.rs/rocket/latest/rocket/response/trait.Responder.html):
+
+```rust
+use rocket::get;
+use plait::{html, ToHtml};
+
+#[get("/")]
+fn index() -> plait::Html {
+    html! {
+        h1 { "Hello from plait!" }
+    }.to_html()
+}
+```
 
 ## License
 

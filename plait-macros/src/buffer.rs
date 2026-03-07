@@ -395,9 +395,14 @@ impl InnerBuffer {
             let ident = &field.ident;
             let value = &field.value;
 
-            field_statements.push(quote! {
-                #ident : #value
-            });
+            match value {
+                Some(value) => field_statements.push(quote! {
+                    #ident : #value
+                }),
+                None => field_statements.push(quote! {
+                    #ident
+                }),
+            }
         }
 
         let component_statement = quote! {

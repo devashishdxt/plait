@@ -11,5 +11,5 @@ pub struct ComponentCall {
 
 pub struct ComponentCallField {
     pub ident: Ident,
-    pub value: Expr,
+    pub value: Option<Expr>,
 }
