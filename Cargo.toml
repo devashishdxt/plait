@@ -8,9 +8,9 @@ axum = { version = "0.8.8", default-features = false }
 convert_case = "0.10.0"
 itoa = "1.0.17"
 percent-encoding = "2.3.2"
-plait-macros = { version = "0.8.0", path = "./plait-macros" }
+plait-macros = { version = "0.8.1", path = "./plait-macros" }
 proc-macro2 = "1.0.106"
-quote = "1.0.44"
+quote = "1.0.45"
 rocket = { version = "0.5.1", default-features = false }
 ryu = "1.0.23"
 syn = { version = "2.0.117", features = ["full", "visit-mut"] }
