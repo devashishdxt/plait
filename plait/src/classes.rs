@@ -2,10 +2,12 @@ use std::fmt;
 
 use crate::RenderEscaped;
 
-/// Trait for values that can be used as CSS class names in the [`classes!`](crate::classes) macro.
+/// Trait for values that can be used as CSS class names in the
+/// [`classes!`](crate::classes) macro.
 ///
-/// Implementors define whether the class should be skipped (e.g. empty string or `None`) and how to render the class
-/// name. Multiple `Class` values are joined with spaces.
+/// Implementors define whether the class should be skipped (e.g. empty string
+/// or `None`) and how to render the class name. Multiple `Class` values are
+/// joined with spaces.
 ///
 /// # Built-in implementations
 ///
@@ -66,9 +68,11 @@ impl Class for str {
     }
 }
 
-/// A wrapper that turns a tuple of [`Class`] values into a single renderable class string.
+/// A wrapper that turns a tuple of [`Class`] values into a single renderable
+/// class string.
 ///
-/// You typically create this via the [`classes!`](crate::classes) macro rather than constructing it directly:
+/// You typically create this via the [`classes!`](crate::classes) macro rather
+/// than constructing it directly:
 ///
 /// ```
 /// use plait::{classes, html, ToHtml};
@@ -81,8 +85,9 @@ impl Class for str {
 /// assert_eq!(frag.to_html(), r#"<div class="base primary highlighted"></div>"#);
 /// ```
 ///
-/// `Classes<T>` implements [`RenderEscaped`] and [`Display`](std::fmt::Display), so it can be used anywhere a
-/// renderable value is expected.
+/// `Classes<T>` implements [`RenderEscaped`] and
+/// [`Display`](std::fmt::Display), so it can be used anywhere a renderable
+/// value is expected.
 pub struct Classes<T>(pub T);
 
 impl<T> Class for Classes<T>
@@ -154,8 +159,8 @@ impl_class_for_tuple!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 
 /// Combines multiple CSS class values into a single [`Classes`] value.
 ///
-/// Empty strings and `None` values are automatically skipped. Non-skipped values are
-/// separated by spaces.
+/// Empty strings and `None` values are automatically skipped. Non-skipped
+/// values are separated by spaces.
 ///
 /// Each argument must implement the [`Class`] trait.
 ///

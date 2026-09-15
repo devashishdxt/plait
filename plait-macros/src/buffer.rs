@@ -37,6 +37,7 @@ impl Buffer {
             size_hint,
             token_stream,
             has_dynamic_value,
+            component_callbacks: _,
         } = self.inner;
 
         let size_hint = if has_dynamic_value {
@@ -77,6 +78,7 @@ pub struct InnerBuffer {
     pub size_hint: usize,
     pub token_stream: TokenStream,
     pub has_dynamic_value: bool,
+    pub component_callbacks: Option<(Ident, Ident)>,
 }
 
 impl InnerBuffer {
@@ -87,6 +89,7 @@ impl InnerBuffer {
             size_hint: 0,
             token_stream: TokenStream::new(),
             has_dynamic_value: false,
+            component_callbacks: None,
         }
     }
 
@@ -371,6 +374,10 @@ impl InnerBuffer {
 
     fn push_children(&mut self, children: &Ident) {
         self.flush_static_str();
+        let children = self
+            .component_callbacks
+            .as_ref()
+            .map_or(children, |(_, children)| children);
 
         let writer = &self.writer;
 
@@ -393,22 +400,19 @@ impl InnerBuffer {
 
         for field in fields {
             let ident = &field.ident;
+            let setter = crate::codegen::setter_name(ident);
             let value = &field.value;
 
             match value {
-                Some(value) => field_statements.push(quote! {
-                    #ident : #value
-                }),
-                None => field_statements.push(quote! {
-                    #ident
-                }),
+                Some(value) => field_statements.push(quote! { .#setter(#value) }),
+                None => field_statements.push(quote! { .#setter(#ident) }),
             }
         }
 
         let component_statement = quote! {
-            &#path {
-                #(#field_statements),*
-            }
+            &#path::__plait_props()
+                #(#field_statements)*
+                .__plait_resolve()
         };
 
         let mut attributes_buffer = self.create_inner();
@@ -472,6 +476,10 @@ impl InnerBuffer {
         match attribute {
             Attribute::Spread(attrs) => {
                 self.flush_static_str();
+                let attrs = self
+                    .component_callbacks
+                    .as_ref()
+                    .map_or(attrs, |(attrs, _)| attrs);
 
                 let writer = &self.writer;
 
@@ -708,6 +716,8 @@ impl InnerBuffer {
     }
 
     fn create_inner(&self) -> Self {
-        Self::new(self.writer.clone())
+        let mut inner = Self::new(self.writer.clone());
+        inner.component_callbacks = self.component_callbacks.clone();
+        inner
     }
 }

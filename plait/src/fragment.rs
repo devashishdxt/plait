@@ -4,11 +4,13 @@ use crate::{Html, RenderEscaped, ToHtml};
 
 /// A lazy HTML fragment returned by the [`html!`](crate::html) macro.
 ///
-/// An `HtmlFragment` wraps a closure that writes HTML into a [`fmt::Write`] buffer. It carries a `size_hint` used to
-/// pre-allocate the output string for better performance.
+/// An `HtmlFragment` wraps a closure that writes HTML into a [`fmt::Write`]
+/// buffer. It carries a `size_hint` used to pre-allocate the output string for
+/// better performance.
 ///
-/// Call [`to_html()`](ToHtml::to_html) to materialize the fragment into an [`Html`] value, or embed it inside another
-/// `html!` template using `(fragment)`.
+/// Call [`to_html()`](ToHtml::to_html) to materialize the fragment into an
+/// [`Html`] value, or embed it inside another `html!` template using
+/// `(fragment)`.
 ///
 /// # Example
 ///
@@ -38,8 +40,8 @@ where
     F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
 {
     #[doc(hidden)]
-    /// Creates a new `HtmlFragment` with the given function and size hint. This is used internally by the `html!`
-    /// macro.
+    /// Creates a new `HtmlFragment` with the given function and size hint. This
+    /// is used internally by the `html!` macro.
     pub fn new(f: F, size_hint: usize) -> Self {
         HtmlFragment { f, size_hint }
     }
@@ -124,9 +126,11 @@ mod rocket {
 
 /// Marker trait for types that represent partial HTML content.
 ///
-/// `PartialHtml` is a subtrait of [`RenderEscaped`] intended for use as a component prop bound when the prop should
-/// accept an [`HtmlFragment`] (i.e. the output of [`html!`](crate::html)). This is more descriptive than using
-/// `RenderEscaped` directly, and signals that the prop expects rendered HTML rather than plain text.
+/// `PartialHtml` is a subtrait of [`RenderEscaped`] intended for use as a
+/// component prop bound when the prop should accept an [`HtmlFragment`] (i.e.
+/// the output of [`html!`](crate::html)). This is more descriptive than using
+/// `RenderEscaped` directly, and signals that the prop expects rendered HTML
+/// rather than plain text.
 ///
 /// # Example
 ///
@@ -156,3 +160,31 @@ mod rocket {
 pub trait PartialHtml: RenderEscaped {}
 
 impl<F> PartialHtml for HtmlFragment<F> where F: Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result {}
+
+/// An empty HTML fragment.
+///
+/// Use `None::<EmptyHtml>` for an absent `Option<impl PartialHtml>` component
+/// prop.
+///
+/// ```
+/// use plait::{EmptyHtml, html, ToHtml};
+///
+/// assert_eq!(EmptyHtml.to_html(), "");
+/// assert_eq!(html! { main { (EmptyHtml) } }.to_html(), "<main></main>");
+/// ```
+#[derive(Clone, Copy, Debug, Default)]
+pub struct EmptyHtml;
+
+impl RenderEscaped for EmptyHtml {
+    fn render_escaped(&self, _: &mut (dyn fmt::Write + '_)) -> fmt::Result {
+        Ok(())
+    }
+}
+
+impl PartialHtml for EmptyHtml {}
+
+impl ToHtml for EmptyHtml {
+    fn to_html(&self) -> Html {
+        Html::new_unchecked(String::new())
+    }
+}

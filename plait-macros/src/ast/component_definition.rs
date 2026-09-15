@@ -1,4 +1,4 @@
-use syn::{Attribute, Generics, Ident, Type, Visibility};
+use syn::{Attribute, Expr, Generics, Ident, Type, Visibility};
 
 use crate::ast::Node;
 
@@ -11,7 +11,9 @@ pub struct ComponentDefinition {
     pub body: Vec<Node>,
 }
 
+#[derive(Clone)]
 pub struct ComponentDefinitionField {
     pub ident: Ident,
     pub ty: Type,
+    pub default: Option<Expr>,
 }

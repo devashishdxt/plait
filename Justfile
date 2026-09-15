@@ -17,12 +17,14 @@ readme: _readme-plait _readme-plait-macros
 [working-directory('plait')]
 _readme-plait:
     cargo readme > README.md
-    sed -i '' 's/\[\(`[^`]*`\)\]/\1/g' README.md
+    sed -i.bak 's/\[\(`[^`]*`\)\]/\1/g' README.md
+    rm README.md.bak
 
 [working-directory('plait-macros')]
 _readme-plait-macros:
     cargo readme > README.md
-    sed -i '' 's/\[\(`[^`]*`\)\]/\1/g' README.md
+    sed -i.bak 's/\[\(`[^`]*`\)\]/\1/g' README.md
+    rm README.md.bak
 
 # Builds documentation
 doc:

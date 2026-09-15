@@ -1,4 +1,4 @@
-use plait::{Class, RenderEscaped, ToHtml, classes, component, html};
+use plait::{Class, EmptyHtml, RenderEscaped, ToHtml, classes, component, html};
 
 // Anonymous lifetime: &str desugared to &'plait_0 str
 component! {
@@ -410,4 +410,143 @@ fn test_form_field_optional() {
          <input type=\"text\" name=\"bio\">\
          </div>"
     );
+}
+
+component! {
+    pub fn ArticleCard(
+        title: impl AsRef<str> + Send = "Untitled",
+        body: impl plait::PartialHtml = html! { p { "No content yet" } },
+        footer: Option<impl plait::PartialHtml> = None::<EmptyHtml>,
+    ) {
+        article {
+            h2 { (title.as_ref()) }
+            (body)
+            if let Some(content) = footer { footer { (content) } }
+        }
+    }
+}
+
+#[test]
+fn anonymous_defaults_select_independent_types() {
+    assert_eq!(
+        html! { @ArticleCard() {} }.to_html(),
+        "<article><h2>Untitled</h2><p>No content yet</p></article>"
+    );
+    assert_eq!(
+        html! { @ArticleCard(title: String::from("Draft")) {} }.to_html(),
+        "<article><h2>Draft</h2><p>No content yet</p></article>"
+    );
+    assert_eq!(
+        html! {
+            @ArticleCard(
+                title: "Release notes",
+                body: html! { p { "Defaults are here" } },
+                footer: Some(html! { small { "Published today" } }),
+            ) {}
+        }
+        .to_html(),
+        "<article><h2>Release notes</h2><p>Defaults are here</p><footer><small>Published today</small></footer></article>"
+    );
+    assert_eq!(
+        html! {
+            @ArticleCard(footer: None::<EmptyHtml>) {}
+        }
+        .to_html(),
+        "<article><h2>Untitled</h2><p>No content yet</p></article>"
+    );
+    assert_eq!(
+        html! { @ArticleCard(body: EmptyHtml, footer: Some(EmptyHtml)) {} }.to_html(),
+        "<article><h2>Untitled</h2><footer></footer></article>"
+    );
+}
+
+component! {
+    pub fn MetricCard<'a, T: Default + RenderEscaped, const N: usize>(
+        current: T,
+        previous: T = T::default(),
+        label: &'a str = "Requests",
+        history: [u8; N] = [0; N],
+        annotation: &impl RenderEscaped = &"No change",
+        thresholds: &[u8] = &[1, 2],
+        unit: Option<&str> = None,
+    ) {
+        section(class: "metric", data_samples: history.len(), data_thresholds: thresholds.len()) {
+            h2 { (label) }
+            p {
+                (current) " / " (previous)
+                if let Some(unit) = unit { " " (unit) }
+            }
+            aside { (annotation) }
+        }
+    }
+}
+
+#[test]
+fn defaults_preserve_generics_borrows_and_coercions() {
+    assert_eq!(
+        html! {
+            @MetricCard::<u8, 3>(current: 7) {}
+        }
+        .to_html(),
+        "<section class=\"metric\" data-samples=\"3\" data-thresholds=\"2\"><h2>Requests</h2><p>7 / 0</p><aside>No change</aside></section>"
+    );
+
+    let owner = String::from("Latency");
+    let label = owner.as_str();
+    assert_eq!(
+        html! {
+            @MetricCard::<&str, 0>(current: label) {}
+        }
+        .to_html(),
+        "<section class=\"metric\" data-samples=\"0\" data-thresholds=\"2\"><h2>Requests</h2><p>Latency / </p><aside>No change</aside></section>"
+    );
+
+    let numbers = [3, 4, 5, 6];
+    let thresholds = &numbers;
+    let fragment = html! { strong { "Improving" } };
+    let annotation = &fragment;
+    let page = html! {
+        @MetricCard(current: 1u16, history: [0; 2], label, annotation, thresholds, unit: None) {}
+        @MetricCard::<String, 0>(current: String::from("Healthy"), previous: String::from("Degraded")) {}
+    };
+    for _ in 0..2 {
+        assert_eq!(
+            page.to_html(),
+            concat!(
+                "<section class=\"metric\" data-samples=\"2\" data-thresholds=\"4\"><h2>Latency</h2><p>1 / 0</p><aside><strong>Improving</strong></aside></section>",
+                "<section class=\"metric\" data-samples=\"0\" data-thresholds=\"2\"><h2>Requests</h2><p>Healthy / Degraded</p><aside>No change</aside></section>",
+            )
+        );
+    }
+}
+
+fn __plait_default_0() -> &'static str {
+    "scope"
+}
+
+type P1 = bool;
+
+component! {
+    fn HygienicDefaults<'plait_0, r#P0: RenderEscaped, __PlaitProps: RenderEscaped, __PlaitState0: RenderEscaped>(
+        __plait_props: &str = __plait_default_0(),
+        __plait_resolve: impl AsRef<str> = "resolver",
+        __plait_component: &'plait_0 str = "writer",
+        r#type: r#P0,
+        flag: P1 = true,
+        attrs: __PlaitProps,
+        children: __PlaitState0,
+    ) {
+        div(#attrs) {
+            (__plait_props) (__plait_resolve.as_ref()) (__plait_component)
+            if *flag { (r#type) (attrs) (children) #children }
+        }
+    }
+}
+
+#[test]
+fn generated_names_do_not_capture_user_names() {
+    let r#type = "type";
+    assert_eq!(html! {
+        @HygienicDefaults(r#type, attrs: "attrs", children: "children"; id: "id") { "forwarded" }
+    }.to_html(), "<div id=\"id\">scoperesolverwritertypeattrschildrenforwarded</div>");
 }

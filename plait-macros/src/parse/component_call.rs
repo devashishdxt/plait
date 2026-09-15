@@ -1,5 +1,9 @@
+use std::collections::HashSet;
+
 use syn::{
-    Ident, braced, parenthesized,
+    Ident, braced,
+    ext::IdentExt,
+    parenthesized,
     parse::{Parse, ParseStream},
     token::{At, Colon, Comma, Paren, Semi},
 };
@@ -16,13 +20,21 @@ impl Parse for ComponentCall {
             let _ = parenthesized!(content in input);
 
             let mut fields = Vec::new();
+            let mut names = HashSet::new();
             let mut attributes = Vec::new();
 
             if content.peek(Semi) {
                 let _ = content.parse::<Semi>()?;
             } else {
                 while !content.is_empty() {
-                    fields.push(content.parse()?);
+                    let field: ComponentCallField = content.parse()?;
+                    if !names.insert(field.ident.unraw().to_string()) {
+                        return Err(syn::Error::new(
+                            field.ident.span(),
+                            "duplicate component prop",
+                        ));
+                    }
+                    fields.push(field);
 
                     if content.peek(Comma) {
                         let _ = content.parse::<Comma>()?;
@@ -80,5 +92,25 @@ impl Parse for ComponentCallField {
         }?;
 
         Ok(Self { ident, value })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::quote;
+
+    #[test]
+    fn duplicate_props_are_rejected() {
+        for input in [
+            quote!(@C(x: 1, x: 2) {}),
+            quote!(@C(x, x: 2) {}),
+            quote!(@C(x, x) {}),
+            quote!(@C(x: 1, r#x) {}),
+        ] {
+            let error = syn::parse2::<ComponentCall>(input).err().unwrap();
+            assert_eq!(error.to_string(), "duplicate component prop");
+        }
+        assert!(syn::parse2::<ComponentCall>(quote!(@C(x, y: 2; x: "attr") {})).is_ok());
     }
 }

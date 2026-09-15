@@ -1,8 +1,10 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
-//! A modern, type-safe HTML templating library for Rust that embraces composition.
+//! A modern, type-safe HTML templating library for Rust that embraces
+//! composition.
 //!
-//! Plait lets you write HTML directly in Rust using the [`html!`] macro, with compile-time validation, automatic
-//! escaping, and a natural syntax that mirrors standard HTML and Rust control flow. Reusable components are defined
+//! Plait lets you write HTML directly in Rust using the [`html!`] macro, with
+//! compile-time validation, automatic escaping, and a natural syntax that
+//! mirrors standard HTML and Rust control flow. Reusable components are defined
 //! with the [`component!`] macro.
 //!
 //! # Quick start
@@ -20,15 +22,16 @@
 //! assert_eq!(page.to_html(), r#"<div class="greeting"><h1>Hello, World!</h1></div>"#);
 //! ```
 //!
-//! The [`html!`] macro returns an [`HtmlFragment`] that implements [`ToHtml`]. Call [`.to_html()`](ToHtml::to_html) to
-//! get an [`Html`] value (a `String` wrapper that implements [`Display`](std::fmt::Display)).
+//! The [`html!`] macro returns an [`HtmlFragment`] that implements [`ToHtml`].
+//! Call [`.to_html()`](ToHtml::to_html) to get an [`Html`] value (a `String`
+//! wrapper that implements [`Display`](std::fmt::Display)).
 //!
 //! # Syntax reference
 //!
 //! ## Elements
 //!
-//! Write element names directly. Children go inside braces. Void elements (like `br`, `img`, `input`) use a semicolon
-//! instead.
+//! Write element names directly. Children go inside braces. Void elements (like
+//! `br`, `img`, `input`) use a semicolon instead.
 //!
 //! ```
 //! # use plait::{html, ToHtml};
@@ -69,8 +72,9 @@
 //!
 //! ## Text and expressions
 //!
-//! String literals are rendered as static text (HTML-escaped). Rust expressions inside parentheses are also
-//! HTML-escaped by default. Use `#(expr)` for raw (unescaped) output.
+//! String literals are rendered as static text (HTML-escaped). Rust expressions
+//! inside parentheses are also HTML-escaped by default. Use `#(expr)` for raw
+//! (unescaped) output.
 //!
 //! ```
 //! # use plait::{html, ToHtml};
@@ -83,7 +87,8 @@
 //! # assert_eq!(frag.to_html(), "Static text &lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;<b>bold</b>");
 //! ```
 //!
-//! Expressions in `()` must implement [`RenderEscaped`]. Expressions in `#()` must implement [`RenderRaw`].
+//! Expressions in `()` must implement [`RenderEscaped`]. Expressions in `#()`
+//! must implement [`RenderRaw`].
 //!
 //! ## Attributes
 //!
@@ -128,8 +133,9 @@
 //!
 //! ## Optional attributes
 //!
-//! Append `?` to the attribute name (before the `:`) to make it conditional. The attribute is only rendered when the
-//! value is `Some(_)` (for [`Option`]) or `true` (for [`bool`]).
+//! Append `?` to the attribute name (before the `:`) to make it conditional.
+//! The attribute is only rendered when the value is `Some(_)` (for [`Option`])
+//! or `true` (for [`bool`]).
 //!
 //! ```
 //! # use plait::{html, ToHtml};
@@ -142,12 +148,13 @@
 //! assert_eq!(frag.to_html(), r#"<button class="active">Click</button>"#);
 //! ```
 //!
-//! Values for `?` attributes must implement [`RenderMaybeAttributeEscaped`] (or [`RenderMaybeAttributeRaw`] when used
-//! with `#()`).
+//! Values for `?` attributes must implement [`RenderMaybeAttributeEscaped`] (or
+//! [`RenderMaybeAttributeRaw`] when used with `#()`).
 //!
 //! ## Control flow
 //!
-//! Standard Rust `if`/`else`, `if let`, `for`, and `match` work inside templates:
+//! Standard Rust `if`/`else`, `if let`, `for`, and `match` work inside
+//! templates:
 //!
 //! ```
 //! # use plait::{html, ToHtml};
@@ -216,7 +223,8 @@
 //!
 //! ## Nesting fragments
 //!
-//! [`HtmlFragment`] implements [`RenderEscaped`], so fragments can be embedded in other fragments:
+//! [`HtmlFragment`] implements [`RenderEscaped`], so fragments can be embedded
+//! in other fragments:
 //!
 //! ```
 //! # use plait::{html, ToHtml};
@@ -227,7 +235,8 @@
 //!
 //! # Components
 //!
-//! Components are reusable template functions defined with the [`component!`] macro:
+//! Components are reusable template functions defined with the [`component!`]
+//! macro:
 //!
 //! ```
 //! use plait::{component, classes, Class};
@@ -241,8 +250,7 @@
 //! }
 //! ```
 //!
-//! The macro generates a struct and a [`Component`] trait implementation. Components are
-//! called with `@` syntax inside [`html!`]:
+//! Call components with `@` syntax inside [`html!`]:
 //!
 //! ```
 //! # use plait::{component, html, ToHtml, classes, Class};
@@ -265,13 +273,42 @@
 //! );
 //! ```
 //!
-//! In the component call, props appear before the `;`, and extra HTML attributes appear after. The component body uses
-//! `#attrs` to spread those extra attributes and `#children` to render the child content.
+//! In the component call, props appear before the `;`, and extra HTML
+//! attributes appear after. The component body uses `#attrs` to spread those
+//! extra attributes and `#children` to render the child content.
+//!
+//! ## Prop defaults
+//!
+//! Use `= expression` to provide a default value for a prop when it is omitted
+//! at call site. All other props are required, including `Option<T>` props.
+//!
+//! ```
+//! use plait::{component, html, ToHtml};
+//!
+//! component! {
+//!     fn SaveButton(label: impl AsRef<str> = "Save", tooltip: Option<&str> = Some("Save changes")) {
+//!         button(title?: tooltip) { (label.as_ref()) }
+//!     }
+//! }
+//! assert_eq!(html! { @SaveButton() {} }.to_html(), "<button title=\"Save changes\">Save</button>");
+//!
+//! // A String can override an &str default; None removes the tooltip.
+//! assert_eq!(html! {
+//!     @SaveButton(label: String::from("Save draft"), tooltip: None) {}
+//! }.to_html(), "<button>Save draft</button>");
+//! ```
+//!
+//! Creating a fragment does not evaluate its props. Each time the fragment is
+//! rendered, supplied prop expressions run in the order written in the call.
+//! Defaults for omitted props then run once each, in declaration order. Default
+//! expressions can use items visible where the component is defined, but cannot
+//! refer to sibling props or variables from the call site. See [`component!`]
+//! for fragment defaults and typed `None`.
 //!
 //! ## Shorthand props
 //!
-//! When a variable has the same name as a component prop, you can use shorthand syntax - just like Rust struct
-//! initialization:
+//! When a variable has the same name as a component prop, you can use shorthand
+//! syntax - just like Rust struct initialization:
 //!
 //! ```
 //! # use plait::{component, html, ToHtml, classes, Class};
@@ -308,7 +345,8 @@
 //!
 //! ## Passing fragments as props
 //!
-//! Use [`PartialHtml`] as a prop bound to accept [`html!`] output as a component prop:
+//! Use [`PartialHtml`] as a prop bound to accept [`html!`] output as a
+//! component prop:
 //!
 //! ```
 //! # use plait::{component, html, ToHtml, PartialHtml};
@@ -330,8 +368,8 @@
 //!
 //! ## Primitive props
 //!
-//! Component props are received as references. For primitive types like `bool` or `u32`, dereference with `*` in the
-//! component body:
+//! Component props are received as references. For primitive types like `bool`
+//! or `u32`, dereference with `*` in the component body:
 //!
 //! ```
 //! # use plait::{component, html, ToHtml};
@@ -346,7 +384,8 @@
 //!
 //! # CSS classes
 //!
-//! The [`classes!`] macro combines multiple class values, automatically skipping empty strings and `None` values:
+//! The [`classes!`] macro combines multiple class values, automatically
+//! skipping empty strings and `None` values:
 //!
 //! ```
 //! # use plait::{html, ToHtml, classes};
@@ -358,13 +397,15 @@
 //! assert_eq!(frag.to_html(), r#"<div class="base primary"></div>"#);
 //! ```
 //!
-//! Values passed to [`classes!`] must implement the [`Class`] trait. This is implemented for `&str`, `Option<T>` where
-//! `T: Class`, and [`Classes<T>`](Classes).
+//! Values passed to [`classes!`] must implement the [`Class`] trait. This is
+//! implemented for `&str`, `Option<T>` where `T: Class`, and
+//! [`Classes<T>`](Classes).
 //!
 //! # Web framework integrations
 //!
-//! Plait provides optional integrations with popular Rust web frameworks. Both [`Html`] and [`HtmlFragment`] can be
-//! returned directly from request handlers when the corresponding feature is enabled.
+//! Plait provides optional integrations with popular Rust web frameworks. Both
+//! [`Html`] and [`HtmlFragment`] can be returned directly from request handlers
+//! when the corresponding feature is enabled.
 //!
 //! Enable integrations by adding the feature flag to your `Cargo.toml`:
 //!
@@ -393,7 +434,8 @@
 //! let app = Router::new().route("/", get(index));
 //! ```
 //!
-//! You can also return an [`HtmlFragment`] directly without calling `.to_html()`:
+//! You can also return an [`HtmlFragment`] directly without calling
+//! `.to_html()`:
 //!
 //! ```ignore
 //! async fn index() -> impl axum::response::IntoResponse {
@@ -444,10 +486,16 @@ mod maybe_attr;
 mod render;
 mod utils;
 
+#[doc(hidden)]
+pub use component::Component;
+#[doc(hidden)]
+pub use component::props as __props;
+
 /// Generates an [`HtmlFragment`] from a template DSL.
 ///
-/// The returned fragment implements [`ToHtml`] (call `.to_html()` to get an [`Html`] string) and [`RenderEscaped`] (so
-/// it can be embedded inside other `html!` calls).
+/// The returned fragment implements [`ToHtml`] (call `.to_html()` to get an
+/// [`Html`] string) and [`RenderEscaped`] (so it can be embedded inside other
+/// `html!` calls).
 ///
 /// See the [crate-level documentation](crate) for a full syntax reference.
 ///
@@ -490,7 +538,7 @@ mod utils;
 /// | `@Component(props; attrs) { children }` | Component call                                          |
 pub use plait_macros::html;
 
-/// Defines a reusable HTML component (struct + [`Component`] trait implementation).
+/// Defines a reusable HTML component.
 ///
 /// See the [crate-level documentation](crate#components) for full details.
 ///
@@ -507,17 +555,42 @@ pub use plait_macros::html;
 /// }
 /// ```
 ///
-/// The macro generates a struct named `Button` with public fields, and implements [`Component`] for it.
+/// Define components with `component!` and call them with `@Name`.
 ///
 /// # Special tokens
 ///
-/// - `#attrs` — renders extra HTML attributes passed at the call site (after `;`).
+/// - `#attrs` — renders extra HTML attributes passed at the call site (after
+///   `;`).
 /// - `#children` — renders child content from inside the component's braces.
 ///
-/// # Field desugaring
+/// # Default values
 ///
-/// - `&str` → auto-generated lifetime `&'plait_N str`
-/// - `impl Trait` → generic type parameter `P_N: Trait`
+/// Props with `= expression` can be omitted or overridden independently.
+/// Defaults are lazy; see [prop defaults](crate#prop-defaults) for evaluation
+/// order.
+///
+/// ```
+/// use plait::{component, html, PartialHtml, ToHtml};
+///
+/// component! {
+///     fn Card(
+///         body: impl PartialHtml = html! { p { "No content yet" } },
+///         caption: Option<impl AsRef<str>> = None::<&str>,
+///     ) {
+///         article {
+///             (body)
+///             if let Some(caption) = caption { footer { (caption.as_ref()) } }
+///         }
+///     }
+/// }
+/// assert_eq!(html! { @Card() {} }.to_html(), "<article><p>No content yet</p></article>");
+/// assert_eq!(html! {
+///     @Card(body: html! { p { "Hello" } }, caption: Some(String::from("Posted today"))) {}
+/// }.to_html(), "<article><p>Hello</p><footer>Posted today</footer></article>");
+/// ```
+///
+/// Use typed `None` for anonymous inner types, as in `None::<&str>` above.
+/// Concrete `Option<&str>` accepts plain `None`.
 ///
 /// # Calling
 ///
@@ -543,8 +616,8 @@ pub use plait_macros::html;
 ///
 /// ## Shorthand props
 ///
-/// When a variable has the same name as a prop, you can omit the value - just like Rust struct initialization
-/// shorthand:
+/// When a variable has the same name as a prop, you can omit the value - just
+/// like Rust struct initialization shorthand:
 ///
 /// ```
 /// # use plait::{component, html, classes, Class, ToHtml};
@@ -567,8 +640,7 @@ pub use plait_macros::component;
 
 pub use self::{
     classes::{Class, Classes},
-    component::Component,
-    fragment::{HtmlFragment, PartialHtml},
+    fragment::{EmptyHtml, HtmlFragment, PartialHtml},
     html::{Html, ToHtml},
     maybe_attr::{RenderMaybeAttributeEscaped, RenderMaybeAttributeRaw},
     render::{RenderEscaped, RenderRaw},

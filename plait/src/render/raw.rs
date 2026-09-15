@@ -2,14 +2,16 @@ use std::{borrow::Cow, fmt};
 
 /// Trait for types that can be rendered as raw (unescaped) text.
 ///
-/// When a value is embedded in an [`html!`](crate::html) template with `#(expr)`, it is rendered through this trait
-/// **without** HTML escaping. Use this when the value is already known to be safe HTML.
+/// When a value is embedded in an [`html!`](crate::html) template with
+/// `#(expr)`, it is rendered through this trait **without** HTML escaping. Use
+/// this when the value is already known to be safe HTML.
 ///
 /// # Built-in implementations
 ///
-/// The same types that implement [`RenderEscaped`](crate::RenderEscaped) also implement `RenderRaw`. For `&str` and
-/// `String`, the output is written verbatim (no escaping). Numeric and boolean types produce the same output as their
-/// escaped counterparts since they contain no HTML-special characters.
+/// The same types that implement [`RenderEscaped`](crate::RenderEscaped) also
+/// implement `RenderRaw`. For `&str` and `String`, the output is written
+/// verbatim (no escaping). Numeric and boolean types produce the same output as
+/// their escaped counterparts since they contain no HTML-special characters.
 pub trait RenderRaw {
     /// Writes the raw (unescaped) representation of `self` into `f`.
     fn render_raw(&self, f: &mut (dyn fmt::Write + '_)) -> fmt::Result;

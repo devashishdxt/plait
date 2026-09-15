@@ -4,8 +4,9 @@ use crate::utils::escape_html_to;
 
 /// Trait for types that can be rendered as HTML-escaped text.
 ///
-/// When a value is embedded in an [`html!`](crate::html) template with `(expr)`, it is rendered through this trait,
-/// which ensures HTML-special characters (`&`, `<`, `>`, `"`, `'`) are escaped.
+/// When a value is embedded in an [`html!`](crate::html) template with
+/// `(expr)`, it is rendered through this trait, which ensures HTML-special
+/// characters (`&`, `<`, `>`, `"`, `'`) are escaped.
 ///
 /// # Built-in implementations
 ///

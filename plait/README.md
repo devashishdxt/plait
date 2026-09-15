@@ -1,9 +1,11 @@
 # plait
 
-A modern, type-safe HTML templating library for Rust that embraces composition.
+A modern, type-safe HTML templating library for Rust that embraces
+composition.
 
-Plait lets you write HTML directly in Rust using the `html!` macro, with compile-time validation, automatic
-escaping, and a natural syntax that mirrors standard HTML and Rust control flow. Reusable components are defined
+Plait lets you write HTML directly in Rust using the `html!` macro, with
+compile-time validation, automatic escaping, and a natural syntax that
+mirrors standard HTML and Rust control flow. Reusable components are defined
 with the `component!` macro.
 
 ## Quick start
@@ -21,15 +23,16 @@ let page = html! {
 assert_eq!(page.to_html(), r#"<div class="greeting"><h1>Hello, World!</h1></div>"#);
 ```
 
-The `html!` macro returns an `HtmlFragment` that implements `ToHtml`. Call `.to_html()`(ToHtml::to_html) to
-get an `Html` value (a `String` wrapper that implements `Display`(std::fmt::Display)).
+The `html!` macro returns an `HtmlFragment` that implements `ToHtml`.
+Call `.to_html()`(ToHtml::to_html) to get an `Html` value (a `String`
+wrapper that implements `Display`(std::fmt::Display)).
 
 ## Syntax reference
 
 ### Elements
 
-Write element names directly. Children go inside braces. Void elements (like `br`, `img`, `input`) use a semicolon
-instead.
+Write element names directly. Children go inside braces. Void elements (like
+`br`, `img`, `input`) use a semicolon instead.
 
 ```rust
 let frag = html! {
@@ -67,8 +70,9 @@ assert_eq!(page.to_html(), "<!DOCTYPE html><html><head><title>My Page</title></h
 
 ### Text and expressions
 
-String literals are rendered as static text (HTML-escaped). Rust expressions inside parentheses are also
-HTML-escaped by default. Use `#(expr)` for raw (unescaped) output.
+String literals are rendered as static text (HTML-escaped). Rust expressions
+inside parentheses are also HTML-escaped by default. Use `#(expr)` for raw
+(unescaped) output.
 
 ```rust
 let user = "<script>alert('xss')</script>";
@@ -79,7 +83,8 @@ let frag = html! {
 };
 ```
 
-Expressions in `()` must implement `RenderEscaped`. Expressions in `#()` must implement `RenderRaw`.
+Expressions in `()` must implement `RenderEscaped`. Expressions in `#()`
+must implement `RenderRaw`.
 
 ### Attributes
 
@@ -120,8 +125,9 @@ assert_eq!(frag.to_html(), r#"<div @click="handler()"></div>"#);
 
 ### Optional attributes
 
-Append `?` to the attribute name (before the `:`) to make it conditional. The attribute is only rendered when the
-value is `Some(_)` (for `Option`) or `true` (for `bool`).
+Append `?` to the attribute name (before the `:`) to make it conditional.
+The attribute is only rendered when the value is `Some(_)` (for `Option`)
+or `true` (for `bool`).
 
 ```rust
 let class = Some("active");
@@ -133,12 +139,13 @@ let frag = html! {
 assert_eq!(frag.to_html(), r#"<button class="active">Click</button>"#);
 ```
 
-Values for `?` attributes must implement `RenderMaybeAttributeEscaped` (or `RenderMaybeAttributeRaw` when used
-with `#()`).
+Values for `?` attributes must implement `RenderMaybeAttributeEscaped` (or
+`RenderMaybeAttributeRaw` when used with `#()`).
 
 ### Control flow
 
-Standard Rust `if`/`else`, `if let`, `for`, and `match` work inside templates:
+Standard Rust `if`/`else`, `if let`, `for`, and `match` work inside
+templates:
 
 ```rust
 let items = vec!["one", "two", "three"];
@@ -200,7 +207,8 @@ assert_eq!(frag.to_html(), "Length: 5");
 
 ### Nesting fragments
 
-`HtmlFragment` implements `RenderEscaped`, so fragments can be embedded in other fragments:
+`HtmlFragment` implements `RenderEscaped`, so fragments can be embedded
+in other fragments:
 
 ```rust
 let inner = html! { p { "inner content" } };
@@ -210,7 +218,8 @@ assert_eq!(outer.to_html(), "<div><p>inner content</p></div>");
 
 ## Components
 
-Components are reusable template functions defined with the `component!` macro:
+Components are reusable template functions defined with the `component!`
+macro:
 
 ```rust
 use plait::{component, classes, Class};
@@ -224,8 +233,7 @@ component! {
 }
 ```
 
-The macro generates a struct and a `Component` trait implementation. Components are
-called with `@` syntax inside `html!`:
+Call components with `@` syntax inside `html!`:
 
 ```rust
 let page = html! {
@@ -240,13 +248,42 @@ assert_eq!(
 );
 ```
 
-In the component call, props appear before the `;`, and extra HTML attributes appear after. The component body uses
-`#attrs` to spread those extra attributes and `#children` to render the child content.
+In the component call, props appear before the `;`, and extra HTML
+attributes appear after. The component body uses `#attrs` to spread those
+extra attributes and `#children` to render the child content.
+
+### Prop defaults
+
+Use `= expression` to provide a default value for a prop when it is omitted
+at call site. All other props are required, including `Option<T>` props.
+
+```rust
+use plait::{component, html, ToHtml};
+
+component! {
+    fn SaveButton(label: impl AsRef<str> = "Save", tooltip: Option<&str> = Some("Save changes")) {
+        button(title?: tooltip) { (label.as_ref()) }
+    }
+}
+assert_eq!(html! { @SaveButton() {} }.to_html(), "<button title=\"Save changes\">Save</button>");
+
+// A String can override an &str default; None removes the tooltip.
+assert_eq!(html! {
+    @SaveButton(label: String::from("Save draft"), tooltip: None) {}
+}.to_html(), "<button>Save draft</button>");
+```
+
+Creating a fragment does not evaluate its props. Each time the fragment is
+rendered, supplied prop expressions run in the order written in the call.
+Defaults for omitted props then run once each, in declaration order. Default
+expressions can use items visible where the component is defined, but cannot
+refer to sibling props or variables from the call site. See `component!`
+for fragment defaults and typed `None`.
 
 ### Shorthand props
 
-When a variable has the same name as a component prop, you can use shorthand syntax - just like Rust struct
-initialization:
+When a variable has the same name as a component prop, you can use shorthand
+syntax - just like Rust struct initialization:
 
 ```rust
 let class = "primary";
@@ -269,7 +306,8 @@ assert_eq!(html.to_html(), "<div><span>Alice</span> - <span>Admin</span></div>")
 
 ### Passing fragments as props
 
-Use `PartialHtml` as a prop bound to accept `html!` output as a component prop:
+Use `PartialHtml` as a prop bound to accept `html!` output as a
+component prop:
 
 ```rust
 component! {
@@ -290,8 +328,8 @@ let page = html! {
 
 ### Primitive props
 
-Component props are received as references. For primitive types like `bool` or `u32`, dereference with `*` in the
-component body:
+Component props are received as references. For primitive types like `bool`
+or `u32`, dereference with `*` in the component body:
 
 ```rust
 component! {
@@ -305,7 +343,8 @@ component! {
 
 ## CSS classes
 
-The `classes!` macro combines multiple class values, automatically skipping empty strings and `None` values:
+The `classes!` macro combines multiple class values, automatically
+skipping empty strings and `None` values:
 
 ```rust
 let extra: Option<&str> = None;
@@ -316,13 +355,15 @@ let frag = html! {
 assert_eq!(frag.to_html(), r#"<div class="base primary"></div>"#);
 ```
 
-Values passed to `classes!` must implement the `Class` trait. This is implemented for `&str`, `Option<T>` where
-`T: Class`, and `Classes<T>`(Classes).
+Values passed to `classes!` must implement the `Class` trait. This is
+implemented for `&str`, `Option<T>` where `T: Class`, and
+`Classes<T>`(Classes).
 
 ## Web framework integrations
 
-Plait provides optional integrations with popular Rust web frameworks. Both `Html` and `HtmlFragment` can be
-returned directly from request handlers when the corresponding feature is enabled.
+Plait provides optional integrations with popular Rust web frameworks. Both
+`Html` and `HtmlFragment` can be returned directly from request handlers
+when the corresponding feature is enabled.
 
 Enable integrations by adding the feature flag to your `Cargo.toml`:
 
@@ -351,7 +392,8 @@ async fn index() -> plait::Html {
 let app = Router::new().route("/", get(index));
 ```
 
-You can also return an `HtmlFragment` directly without calling `.to_html()`:
+You can also return an `HtmlFragment` directly without calling
+`.to_html()`:
 
 ```rust
 async fn index() -> impl axum::response::IntoResponse {
@@ -406,5 +448,6 @@ at your option.
 
 ## Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as
-defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.

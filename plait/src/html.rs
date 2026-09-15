@@ -4,15 +4,17 @@ use crate::{RenderEscaped, RenderRaw};
 
 /// An owned string of rendered HTML.
 ///
-/// `Html` is a thin wrapper around [`String`] that represents already-rendered HTML content. It implements
-/// [`Deref<Target = str>`](Deref), [`Display`](fmt::Display), and can be converted back into a [`String`] with
+/// `Html` is a thin wrapper around [`String`] that represents already-rendered
+/// HTML content. It implements [`Deref<Target = str>`](Deref),
+/// [`Display`](fmt::Display), and can be converted back into a [`String`] with
 /// [`From`].
 ///
-/// You typically obtain an `Html` value by calling [`ToHtml::to_html()`] on an [`HtmlFragment`](crate::HtmlFragment)
-/// returned by the [`html!`](crate::html) macro.
+/// You typically obtain an `Html` value by calling [`ToHtml::to_html()`] on an
+/// [`HtmlFragment`](crate::HtmlFragment) returned by the [`html!`](crate::html)
+/// macro.
 ///
-/// Because the content is already rendered HTML, both [`RenderEscaped`] and [`RenderRaw`] write the inner string as-is
-/// (no double-escaping).
+/// Because the content is already rendered HTML, both [`RenderEscaped`] and
+/// [`RenderRaw`] write the inner string as-is (no double-escaping).
 ///
 /// # Example
 ///
@@ -130,8 +132,9 @@ mod rocket {
 
 /// Trait for types that can be rendered into an [`Html`] value.
 ///
-/// This is the primary way to materialize a template into an owned HTML string. The [`html!`](crate::html) macro
-/// returns an [`HtmlFragment`](crate::HtmlFragment) that implements this trait.
+/// This is the primary way to materialize a template into an owned HTML string.
+/// The [`html!`](crate::html) macro returns an
+/// [`HtmlFragment`](crate::HtmlFragment) that implements this trait.
 ///
 /// # Example
 ///

@@ -1,7 +1,10 @@
+use std::collections::HashSet;
+
 use proc_macro2::Span;
 use syn::{
     GenericParam, Generics, Ident, Lifetime, LifetimeParam, Type, TypeImplTrait, TypeParam,
     TypePath,
+    ext::IdentExt,
     visit_mut::{self, VisitMut},
 };
 
@@ -14,13 +17,34 @@ use crate::ast::ComponentDefinitionField;
 /// - Every `&str` or `&'_ str` in field types has been replaced with `&'plait_N str`
 /// - Every `impl Trait` in field types has been replaced with a type parameter `P_N`
 /// - The corresponding lifetime and type parameters have been added to `generics`
-pub fn desugar_fields(fields: &mut [ComponentDefinitionField], generics: &mut Generics) {
-    let mut lifetimes = CollectLifetimes::new();
-    let mut impl_traits = CollectImplTraits::new();
+pub fn desugar_fields_avoiding(
+    fields: &mut [ComponentDefinitionField],
+    generics: &mut Generics,
+    reserved: &HashSet<String>,
+) {
+    desugar_lifetimes(fields, generics, reserved);
+    let mut impl_traits = CollectImplTraits::new(generics);
+    impl_traits.used.extend(reserved.iter().cloned());
+    for field in fields.iter_mut() {
+        impl_traits.visit_type_mut(&mut field.ty);
+    }
+    for type_param in impl_traits.type_params {
+        generics.params.push(GenericParam::Type(type_param));
+    }
+}
 
+/// Name lifetimes without erasing the anonymous type shape used by default factories.
+pub fn desugar_lifetimes(
+    fields: &mut [ComponentDefinitionField],
+    generics: &mut Generics,
+    reserved: &HashSet<String>,
+) {
+    let mut lifetimes = CollectLifetimes::new(generics);
+    lifetimes
+        .used
+        .extend(reserved.iter().map(|name| format!("'{name}")));
     for field in fields.iter_mut() {
         lifetimes.visit_type_mut(&mut field.ty);
-        impl_traits.visit_type_mut(&mut field.ty);
     }
 
     // Prepend lifetime params before existing params
@@ -36,11 +60,6 @@ pub fn desugar_fields(fields: &mut [ComponentDefinitionField], generics: &mut Ge
     for param in existing_params {
         generics.params.push(param);
     }
-
-    // Append type params after existing params
-    for type_param in impl_traits.type_params {
-        generics.params.push(GenericParam::Type(type_param));
-    }
 }
 
 /// Walks field types and replaces anonymous/elided lifetimes with named ones.
@@ -51,15 +70,29 @@ pub fn desugar_fields(fields: &mut [ComponentDefinitionField], generics: &mut Ge
 /// - `&&str` gets two lifetimes: `&'plait_0 &'plait_1 str`
 struct CollectLifetimes {
     elided: Vec<Lifetime>,
+    used: std::collections::HashSet<String>,
 }
 
 impl CollectLifetimes {
-    fn new() -> Self {
-        Self { elided: Vec::new() }
+    fn new(generics: &Generics) -> Self {
+        Self {
+            elided: Vec::new(),
+            used: generics
+                .lifetimes()
+                .map(|p| p.lifetime.to_string())
+                .collect(),
+        }
     }
 
     fn next_lifetime(&mut self, span: Span) -> Lifetime {
-        let name = format!("'plait_{}", self.elided.len());
+        let mut index = self.elided.len();
+        let name = loop {
+            let name = format!("'plait_{index}");
+            if self.used.insert(name.clone()) {
+                break name;
+            }
+            index += 1;
+        };
         let lifetime = Lifetime::new(&name, span);
         self.elided.push(lifetime.clone());
         lifetime
@@ -100,18 +133,35 @@ impl VisitMut for CollectLifetimes {
 /// - Each `impl Trait` occurrence gets its own parameter
 struct CollectImplTraits {
     type_params: Vec<TypeParam>,
+    used: std::collections::HashSet<String>,
 }
 
 impl CollectImplTraits {
-    fn new() -> Self {
+    fn new(generics: &Generics) -> Self {
         Self {
             type_params: Vec::new(),
+            used: generics
+                .params
+                .iter()
+                .filter_map(|p| match p {
+                    GenericParam::Type(p) => Some(p.ident.unraw().to_string()),
+                    GenericParam::Const(p) => Some(p.ident.unraw().to_string()),
+                    _ => None,
+                })
+                .collect(),
         }
     }
 
     fn next_type_param(&mut self, impl_trait: &TypeImplTrait) -> Type {
-        let index = self.type_params.len();
-        let ident = Ident::new(&format!("P{index}"), impl_trait.impl_token.span);
+        let mut index = self.type_params.len();
+        let name = loop {
+            let name = format!("P{index}");
+            if self.used.insert(name.clone()) {
+                break name;
+            }
+            index += 1;
+        };
+        let ident = Ident::new(&name, impl_trait.impl_token.span);
 
         let mut type_param = TypeParam::from(ident.clone());
         type_param.bounds = impl_trait.bounds.clone();
@@ -144,6 +194,10 @@ mod tests {
 
     use super::*;
 
+    fn desugar_fields(fields: &mut [ComponentDefinitionField], generics: &mut Generics) {
+        desugar_fields_avoiding(fields, generics, &HashSet::new());
+    }
+
     fn desugar(input: proc_macro2::TokenStream) -> (Vec<ComponentDefinitionField>, Generics) {
         let mut fields: Vec<ComponentDefinitionField> = Vec::new();
 
@@ -163,6 +217,7 @@ mod tests {
                 fields.push(ComponentDefinitionField {
                     ident,
                     ty: *pat_type.ty,
+                    default: None,
                 });
             }
         }
@@ -285,6 +340,7 @@ mod tests {
                 fields.push(ComponentDefinitionField {
                     ident,
                     ty: *pat_type.ty,
+                    default: None,
                 });
             }
         }
@@ -305,6 +361,17 @@ mod tests {
 
         assert_eq!(type_to_string(&fields[0].ty), "Option < & 'plait_0 str >");
         assert_eq!(generics_to_string(&generics), "< 'plait_0 >");
+    }
+
+    #[test]
+    fn defaults_survive_desugaring() {
+        let mut field: ComponentDefinitionField =
+            parse_quote!(x: Option<impl Display> = None::<String>);
+        let mut generics = Generics::default();
+        desugar_fields(std::slice::from_mut(&mut field), &mut generics);
+        assert_eq!(type_to_string(&field.ty), "Option < P0 >");
+        let default = &field.default;
+        assert_eq!(quote!(#default).to_string(), "None :: < String >");
     }
 
     #[test]

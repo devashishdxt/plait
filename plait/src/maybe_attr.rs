@@ -2,10 +2,11 @@ use std::fmt;
 
 use crate::{RenderEscaped, RenderRaw};
 
-/// Trait for conditionally rendering an HTML attribute with a raw (unescaped) value.
+/// Trait for conditionally rendering an HTML attribute with a raw (unescaped)
+/// value.
 ///
-/// Used by the `attr?: #(expr)` syntax in [`html!`](crate::html). The attribute is only rendered when the value is
-/// "present" (e.g. `Some(_)` or `true`).
+/// Used by the `attr?: #(expr)` syntax in [`html!`](crate::html). The attribute
+/// is only rendered when the value is "present" (e.g. `Some(_)` or `true`).
 ///
 /// # Built-in implementations
 ///
@@ -62,8 +63,8 @@ where
 
 /// Trait for conditionally rendering an HTML attribute with an escaped value.
 ///
-/// Used by the `attr?: expr` syntax in [`html!`](crate::html). The attribute is only rendered when the value is
-/// "present" (e.g. `Some(_)` or `true`).
+/// Used by the `attr?: expr` syntax in [`html!`](crate::html). The attribute is
+/// only rendered when the value is "present" (e.g. `Some(_)` or `true`).
 ///
 /// # Built-in implementations
 ///

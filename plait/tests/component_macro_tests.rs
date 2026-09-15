@@ -176,3 +176,129 @@ fn test_shorthand_with_ref_lifetime() {
         "<button class=\"btn primary\">Submit</button>"
     );
 }
+
+mod default_components {
+    use super::*;
+    use std::cell::RefCell;
+
+    thread_local! {
+        static EVENTS: RefCell<Vec<&'static str>> = const { RefCell::new(Vec::new()) };
+    }
+
+    pub fn record(event: &'static str) -> &'static str {
+        EVENTS.with(|events| events.borrow_mut().push(event));
+        event
+    }
+
+    pub fn take_events() -> Vec<&'static str> {
+        EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
+    }
+
+    component! {
+        pub fn ActionButton(
+            kind: &str = "button",
+            disabled: bool = false,
+            tooltip: Option<&str> = Some("Save changes"),
+        ) {
+            button(type: kind, disabled?: disabled, title?: tooltip) { #children }
+        }
+    }
+
+    component! {
+        pub fn ArticlePreview(
+            title: &str = record("Untitled"),
+            summary: &str = record("No summary"),
+            author: Option<&str> = Some(record("Anonymous")),
+            link: &str = record("/articles"),
+        ) {
+            article {
+                h2 { a(href: link) { (title) } }
+                p { (summary) }
+                if let Some(author) = author { footer { (author) } }
+            }
+        }
+    }
+
+    component! { pub fn Divider() { hr; } }
+
+    component! {
+        pub fn Panel() {
+            (html! { section(#attrs) { #children } })
+        }
+    }
+}
+
+use default_components::ActionButton as SaveButton;
+
+#[test]
+fn defaults_are_independently_overridable() {
+    let disabled = true;
+    assert_eq!(
+        html! {
+            @default_components::ActionButton() { "Save" }
+            @SaveButton(kind: "submit") { "Publish" }
+            @SaveButton(disabled) { "Saving" }
+            @SaveButton(disabled: true, kind: "reset", tooltip: None) { "Reset" }
+            @default_components::Divider {}
+            @default_components::Divider() {}
+        }
+        .to_html(),
+        concat!(
+            "<button type=\"button\" title=\"Save changes\">Save</button>",
+            "<button type=\"submit\" title=\"Save changes\">Publish</button>",
+            "<button type=\"button\" disabled title=\"Save changes\">Saving</button>",
+            "<button type=\"reset\" disabled>Reset</button><hr><hr>",
+        )
+    );
+}
+
+#[test]
+fn defaults_run_lazily_in_declaration_scope_and_order() {
+    use default_components::take_events;
+    take_events();
+    // This caller-local name must not capture the declaration's `record` helper.
+    let record = || panic!("caller-local helper must not run");
+    let _ = &record;
+    let page = html! {
+        @default_components::ArticlePreview(
+            link: default_components::record("/draft"),
+            summary: default_components::record("Draft summary"),
+        ) {}
+    };
+    assert!(take_events().is_empty());
+    for _ in 0..2 {
+        assert_eq!(
+            page.to_html(),
+            "<article><h2><a href=\"/draft\">Untitled</a></h2><p>Draft summary</p><footer>Anonymous</footer></article>"
+        );
+        assert_eq!(
+            take_events(),
+            ["/draft", "Draft summary", "Untitled", "Anonymous"]
+        );
+    }
+    let override_all = html! {
+        @default_components::ArticlePreview(
+            author: None,
+            summary: default_components::record("Published summary"),
+            title: default_components::record("Launch"),
+            link: default_components::record("/launch"),
+        ) {}
+    };
+    assert!(take_events().is_empty());
+    assert_eq!(
+        override_all.to_html(),
+        "<article><h2><a href=\"/launch\">Launch</a></h2><p>Published summary</p></article>"
+    );
+    assert_eq!(take_events(), ["Published summary", "Launch", "/launch"]);
+}
+
+#[test]
+fn nested_fragments_forward_attributes_and_children() {
+    assert_eq!(
+        html! {
+            @default_components::Panel(; class: "panel") { p { "Welcome" } }
+        }
+        .to_html(),
+        "<section class=\"panel\"><p>Welcome</p></section>"
+    );
+}
