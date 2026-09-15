@@ -8,7 +8,7 @@ axum = { version = "0.8", default-features = false }
 convert_case = "0.10"
 itoa = "1"
 percent-encoding = "2"
-plait-macros = { version = "0.8.1", path = "./plait-macros" }
+plait-macros = { version = "0.9.0", path = "./plait-macros" }
 proc-macro2 = "1"
 quote = "1"
 rocket = { version = "0.5", default-features = false }

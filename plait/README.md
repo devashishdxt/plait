@@ -24,8 +24,8 @@ assert_eq!(page.to_html(), r#"<div class="greeting"><h1>Hello, World!</h1></div>
 ```
 
 The `html!` macro returns an `HtmlFragment` that implements `ToHtml`.
-Call `.to_html()`(ToHtml::to_html) to get an `Html` value (a `String`
-wrapper that implements `Display`(std::fmt::Display)).
+Call `.to_html()` to get an `Html` value (a `String`
+wrapper that implements `Display`).
 
 ## Syntax reference
 
@@ -357,7 +357,7 @@ assert_eq!(frag.to_html(), r#"<div class="base primary"></div>"#);
 
 Values passed to `classes!` must implement the `Class` trait. This is
 implemented for `&str`, `Option<T>` where `T: Class`, and
-`Classes<T>`(Classes).
+`Classes<T>`.
 
 ## Web framework integrations
 
@@ -377,7 +377,7 @@ Available features: `actix-web`, `axum`, `rocket`.
 ### axum
 
 `Html` and `HtmlFragment` implement
-`IntoResponse`(https://docs.rs/axum/latest/axum/response/trait.IntoResponse.html):
+[`IntoResponse`](https://docs.rs/axum/latest/axum/response/trait.IntoResponse.html):
 
 ```rust
 use axum::{Router, routing::get};
@@ -406,7 +406,7 @@ async fn index() -> impl axum::response::IntoResponse {
 ### actix-web
 
 `Html` and `HtmlFragment` implement
-`Responder`(https://docs.rs/actix-web/latest/actix_web/trait.Responder.html):
+[`Responder`](https://docs.rs/actix-web/latest/actix_web/trait.Responder.html):
 
 ```rust
 use actix_web::{App, HttpServer, get};
@@ -423,7 +423,7 @@ async fn index() -> plait::Html {
 ### rocket
 
 `Html` and `HtmlFragment` implement
-`Responder`(https://docs.rs/rocket/latest/rocket/response/trait.Responder.html):
+[`Responder`](https://docs.rs/rocket/latest/rocket/response/trait.Responder.html):
 
 ```rust
 use rocket::get;

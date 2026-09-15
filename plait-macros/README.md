@@ -1,6 +1,6 @@
 # plait-macros
 
-Procedural macros for the `plait`(https://docs.rs/plait) HTML templating
+Procedural macros for the [`plait`](https://docs.rs/plait) HTML templating
 library.
 
 This crate provides the `html!` and `component!` macros. You should
