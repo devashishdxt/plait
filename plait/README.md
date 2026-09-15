@@ -369,7 +369,7 @@ Enable integrations by adding the feature flag to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-plait = { version = "0.8", features = ["axum"] }
+plait = { version = "0.9", features = ["axum"] }
 ```
 
 Available features: `actix-web`, `axum`, `rocket`.
