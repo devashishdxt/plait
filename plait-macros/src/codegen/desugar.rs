@@ -169,6 +169,7 @@ impl CollectImplTraits {
         self.type_params.push(type_param);
 
         Type::Path(TypePath {
+            attrs: impl_trait.attrs.clone(),
             qself: None,
             path: ident.into(),
         })
@@ -286,6 +287,26 @@ mod tests {
         let (fields, generics) = desugar(quote! { x: impl Display });
 
         assert_eq!(type_to_string(&fields[0].ty), "P0");
+        assert_eq!(generics_to_string(&generics), "< P0 : Display >");
+    }
+
+    #[test]
+    fn test_impl_trait_attributes_preserved() {
+        let mut field: ComponentDefinitionField = parse_quote!(x: impl Display);
+        let Type::ImplTrait(impl_trait) = &mut field.ty else {
+            panic!("expected impl Trait");
+        };
+        impl_trait.attrs.push(parse_quote!(#[allow(dead_code)]));
+        let mut generics = Generics::default();
+
+        desugar_fields(std::slice::from_mut(&mut field), &mut generics);
+
+        let Type::Path(type_path) = &field.ty else {
+            panic!("expected type path");
+        };
+        let attrs = &type_path.attrs;
+        assert_eq!(quote!(#(#attrs)*).to_string(), "# [allow (dead_code)]");
+        assert_eq!(type_to_string(&field.ty), "P0");
         assert_eq!(generics_to_string(&generics), "< P0 : Display >");
     }
 
