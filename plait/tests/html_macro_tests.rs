@@ -172,7 +172,8 @@ fn test_html_macro_if_let_else() {
 
 #[test]
 fn test_html_macro_for_loop() {
-    let numbers = vec![1, 2, 3];
+    // Exercise iteration over an owned Vec, not just an array.
+    let numbers = Vec::from([1, 2, 3]);
 
     let html = html! {
         for number in numbers.iter() {

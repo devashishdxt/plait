@@ -1,0 +1,12 @@
+error[E0597]: `owner` does not live long enough
+  --> tests/ui/borrow_cannot_outlive_owner.rs:7:21
+   |
+ 6 |         let owner = String::from("value");
+   |             ----- binding `owner` declared here
+ 7 |         let value = owner.as_str();
+   |                     ^^^^^ borrowed value does not live long enough
+ 8 |         page = html! { @Example(value) {} };
+ 9 |     }
+   |     - `owner` dropped here while still borrowed
+10 |     let _ = page.to_html();
+   |             ---- borrow later used here

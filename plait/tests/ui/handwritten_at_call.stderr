@@ -1,0 +1,10 @@
+error[E0599]: no associated function or constant named `__plait_props` found for struct `Handwritten` in the current scope
+  --> tests/ui/handwritten_at_call.rs:18:13
+   |
+ 4 | struct Handwritten;
+   | ------------------ associated function or constant `__plait_props` not found for this struct
+...
+18 |     let _ = html! { @Handwritten {} };
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^ associated function or constant not found in `Handwritten`
+   |
+   = note: this error originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,0 +1,17 @@
+error[E0277]: missing required prop `title` for component `Dialog`
+ --> tests/ui/f05_missing_dialog_title.rs:7:13
+  |
+7 |     let _ = html! { @Dialog(id: "edit") { "Body" } };
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `__PlaitRequiredDialog_title<_>` is not implemented for `plait::__private::Missing`
+  |
+note: required by a bound in `__PlaitPropsDialog::<'plait_0, 'plait_1, 'plait_2, __PlaitState0, __PlaitState1, P0>::__plait_build`
+ --> tests/ui/../support/default_components.rs
+  |
+  | / component! {
+  | |     pub fn Dialog(
+  | |         id: &str,
+  | |         title: impl PartialHtml,
+... |
+  | | }
+  | |_^ required by this bound in `__PlaitPropsDialog::<'plait_0, 'plait_1, 'plait_2, __PlaitState0, __PlaitState1, P0>::__plait_build`
+  = note: this error originates in the macro `html` which comes from the expansion of the macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)

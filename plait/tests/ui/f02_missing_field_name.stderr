@@ -1,0 +1,17 @@
+error[E0277]: missing required prop `name` for component `TextField`
+ --> tests/ui/f02_missing_field_name.rs:7:13
+  |
+7 |     let _ = html! { @TextField(id: "email", label: "Email") {} };
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `__PlaitRequiredTextField_name<&str>` is not implemented for `plait::__private::Missing`
+  |
+note: required by a bound in `__PlaitPropsTextField::<'plait_0, 'plait_1, 'plait_2, 'plait_3, 'plait_4, 'plait_5, 'plait_6, __PlaitState0, __PlaitState1, __PlaitState2>::__plait_build`
+ --> tests/ui/../support/default_components.rs
+  |
+  | / component! {
+  | |     pub fn TextField(
+  | |         id: &str,
+  | |         name: &str,
+... |
+  | | }
+  | |_^ required by this bound in `__PlaitPropsTextField::<'plait_0, 'plait_1, 'plait_2, 'plait_3, 'plait_4, 'plait_5, 'plait_6, __PlaitState0, __PlaitState1, __PlaitState2>::__plait_build`
+  = note: this error originates in the macro `html` which comes from the expansion of the macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)

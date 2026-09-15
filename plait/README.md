@@ -243,6 +243,18 @@ assert_eq!(
 In the component call, props appear before the `;`, and extra HTML attributes appear after. The component body uses
 `#attrs` to spread those extra attributes and `#children` to render the child content.
 
+### Default props (0.9 development)
+
+Component authors can declare defaults with `prop: Type = expression`; callers
+can omit each defaulted prop independently. Required props remain compile-time
+requirements. Borrowed optional text and fragment props need no allocations or
+caller generic annotations.
+
+See `plait/docs/component-defaults.md` (relative to the repository root), also
+included in the `component!` macro's rustdoc, for runnable examples, evaluation
+rules, optional fragments, and the breaking change for handwritten `@Component`
+calls. The `Component` rendering trait remains available.
+
 ### Shorthand props
 
 When a variable has the same name as a component prop, you can use shorthand syntax - just like Rust struct

@@ -1,0 +1,5 @@
+error[E0308]: mismatched types
+ --> tests/ui/wrong_default_type.rs:2:39
+  |
+2 | component! { fn Example(value: &str = 42) { (value) } }
+  |                                       ^^ expected `&str`, found integer

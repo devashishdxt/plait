@@ -1,4 +1,4 @@
-use syn::{Attribute, Generics, Ident, Type, Visibility};
+use syn::{Attribute, Expr, Generics, Ident, Type, Visibility};
 
 use crate::ast::Node;
 
@@ -14,4 +14,5 @@ pub struct ComponentDefinition {
 pub struct ComponentDefinitionField {
     pub ident: Ident,
     pub ty: Type,
+    pub default: Option<Expr>,
 }

@@ -1,0 +1,14 @@
+error[E0599]: no method named `__plait_set_typo` found for struct `__PlaitPropsExample<'plait_0>` in the current scope
+ --> tests/ui/unknown_prop.rs:4:30
+  |
+2 | component! { fn Example(value: &str = "") { (value) } }
+  | ------------------------------------------------------- method `__plait_set_typo` not found for this struct
+3 | fn main() {
+4 |     let _ = html! { @Example(typo: "one") {} };
+  |                              ^^^^
+  |
+help: there is a method `__plait_set_value` with a similar name
+  |
+4 -     let _ = html! { @Example(typo: "one") {} };
+4 +     let _ = html! { @Example(__plait_set_value: "one") {} };
+  |

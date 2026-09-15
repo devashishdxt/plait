@@ -1,7 +1,7 @@
 use syn::{
     Attribute, Generics, braced, parenthesized,
     parse::{Parse, ParseStream},
-    token::{Colon, Comma, Fn, Paren},
+    token::{Colon, Comma, Eq, Fn, Paren},
 };
 
 use crate::ast::{ComponentDefinition, ComponentDefinitionField};
@@ -62,6 +62,71 @@ impl Parse for ComponentDefinitionField {
         let ident = input.parse()?;
         let _ = input.parse::<Colon>()?;
         let ty = input.parse()?;
-        Ok(Self { ident, ty })
+        let default = if input.peek(Eq) {
+            let _ = input.parse::<Eq>()?;
+            Some(input.parse()?)
+        } else {
+            None
+        };
+        Ok(Self { ident, ty, default })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ast::ComponentDefinition;
+    use quote::{ToTokens, quote};
+
+    #[test]
+    fn explicit_defaults_do_not_change_requiredness_of_other_props() {
+        let component: ComponentDefinition = syn::parse2(quote! {
+            pub fn Example(
+                id: &str,
+                required_option: Option<&str>,
+                value: &str = "",
+                optional: Option<&str> = None,
+                pair: (u32, u32) = (1, 2),
+            ) {}
+        })
+        .unwrap();
+        assert!(component.fields[0].default.is_none());
+        assert!(component.fields[1].default.is_none());
+        assert_eq!(
+            component.fields[2]
+                .default
+                .as_ref()
+                .unwrap()
+                .to_token_stream()
+                .to_string(),
+            "\"\""
+        );
+        assert_eq!(
+            component.fields[3]
+                .default
+                .as_ref()
+                .unwrap()
+                .to_token_stream()
+                .to_string(),
+            "None"
+        );
+        assert_eq!(
+            component.fields[4]
+                .default
+                .as_ref()
+                .unwrap()
+                .to_token_stream()
+                .to_string(),
+            "(1 , 2)"
+        );
+    }
+
+    #[test]
+    fn rejects_missing_default_expression() {
+        assert!(
+            syn::parse2::<ComponentDefinition>(quote! {
+                fn Example(value: &str = ) {}
+            })
+            .is_err()
+        );
     }
 }

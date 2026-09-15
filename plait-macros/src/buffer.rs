@@ -4,8 +4,10 @@ use std::{
 };
 
 use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{Expr, Ident, Lit, LitBool, LitChar, LitFloat, LitInt, LitStr, spanned::Spanned};
+use quote::{format_ident, quote};
+use syn::{
+    Expr, Ident, Lit, LitBool, LitChar, LitFloat, LitInt, LitStr, ext::IdentExt, spanned::Spanned,
+};
 
 use crate::{
     ast::{
@@ -395,20 +397,15 @@ impl InnerBuffer {
             let ident = &field.ident;
             let value = &field.value;
 
+            let setter = format_ident!("__plait_set_{}", ident.unraw());
             match value {
-                Some(value) => field_statements.push(quote! {
-                    #ident : #value
-                }),
-                None => field_statements.push(quote! {
-                    #ident
-                }),
+                Some(value) => field_statements.push(quote! { .#setter(#value) }),
+                None => field_statements.push(quote! { .#setter(#ident) }),
             }
         }
 
         let component_statement = quote! {
-            &#path {
-                #(#field_statements),*
-            }
+            &#path::__plait_props() #(#field_statements)* .__plait_build()
         };
 
         let mut attributes_buffer = self.create_inner();

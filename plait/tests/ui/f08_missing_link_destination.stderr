@@ -1,0 +1,16 @@
+error[E0277]: missing required prop `href` for component `LinkButton`
+ --> tests/ui/f08_missing_link_destination.rs:7:13
+  |
+7 |     let _ = html! { @LinkButton { "Home" } };
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `__PlaitRequiredLinkButton_href<&str>` is not implemented for `plait::__private::Missing`
+  |
+note: required by a bound in `__PlaitPropsLinkButton::<'plait_0, __PlaitState0>::__plait_build`
+ --> tests/ui/../support/default_components.rs
+  |
+  | / component! {
+  | |     pub fn LinkButton(href: &str, appearance: Appearance = Appearance::Solid) {
+  | |         a(href: href, class: appearance.class(), #attrs) { #children }
+  | |     }
+  | | }
+  | |_^ required by this bound in `__PlaitPropsLinkButton::<'plait_0, __PlaitState0>::__plait_build`
+  = note: this error originates in the macro `html` which comes from the expansion of the macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)

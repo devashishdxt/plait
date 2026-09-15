@@ -1,5 +1,9 @@
+use std::collections::HashSet;
+
 use syn::{
-    Ident, braced, parenthesized,
+    Ident, braced,
+    ext::IdentExt,
+    parenthesized,
     parse::{Parse, ParseStream},
     token::{At, Colon, Comma, Paren, Semi},
 };
@@ -17,12 +21,20 @@ impl Parse for ComponentCall {
 
             let mut fields = Vec::new();
             let mut attributes = Vec::new();
+            let mut supplied = HashSet::new();
 
             if content.peek(Semi) {
                 let _ = content.parse::<Semi>()?;
             } else {
                 while !content.is_empty() {
-                    fields.push(content.parse()?);
+                    let field: ComponentCallField = content.parse()?;
+                    if !supplied.insert(field.ident.unraw().to_string()) {
+                        return Err(syn::Error::new(
+                            field.ident.span(),
+                            format!("duplicate prop `{}`", field.ident.unraw()),
+                        ));
+                    }
+                    fields.push(field);
 
                     if content.peek(Comma) {
                         let _ = content.parse::<Comma>()?;

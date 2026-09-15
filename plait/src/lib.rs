@@ -444,6 +444,10 @@ mod maybe_attr;
 mod render;
 mod utils;
 
+#[doc(hidden)]
+#[path = "private.rs"]
+pub mod __private;
+
 /// Generates an [`HtmlFragment`] from a template DSL.
 ///
 /// The returned fragment implements [`ToHtml`] (call `.to_html()` to get an [`Html`] string) and [`RenderEscaped`] (so
@@ -563,6 +567,7 @@ pub use plait_macros::html;
 ///
 /// assert_eq!(html.to_html(), "<button class=\"btn primary\">Click</button>");
 /// ```
+#[doc = include_str!("../docs/component-defaults.md")]
 pub use plait_macros::component;
 
 pub use self::{

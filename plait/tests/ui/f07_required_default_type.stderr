@@ -1,0 +1,17 @@
+error[E0277]: missing required prop `count` for component `Legacy`
+ --> tests/ui/f07_required_default_type.rs:7:13
+  |
+7 |     let _ = html! { @Legacy(label: "Label", note: None, content: html! { "Content" }) {} };
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `__PlaitRequiredLegacy_count<u32>` is not implemented for `plait::__private::Missing`
+  |
+note: required by a bound in `__PlaitPropsLegacy::<'plait_0, 'a, __PlaitState0, __PlaitState1, __PlaitState2, __PlaitState3, T>::__plait_build`
+ --> tests/ui/../support/default_components.rs
+  |
+  | / component! {
+  | |     pub fn Legacy<'a, T>(label: &'a str, note: Option<&str>, content: T, count: u32)
+  | |     where T: RenderEscaped {
+  | |         section(data_count: count, #attrs) {
+... |
+  | | }
+  | |_^ required by this bound in `__PlaitPropsLegacy::<'plait_0, 'a, __PlaitState0, __PlaitState1, __PlaitState2, __PlaitState3, T>::__plait_build`
+  = note: this error originates in the macro `html` which comes from the expansion of the macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)

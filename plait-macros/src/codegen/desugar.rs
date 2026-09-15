@@ -163,6 +163,7 @@ mod tests {
                 fields.push(ComponentDefinitionField {
                     ident,
                     ty: *pat_type.ty,
+                    default: None,
                 });
             }
         }
@@ -285,6 +286,7 @@ mod tests {
                 fields.push(ComponentDefinitionField {
                     ident,
                     ty: *pat_type.ty,
+                    default: None,
                 });
             }
         }

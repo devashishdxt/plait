@@ -2,7 +2,11 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Ident;
 
-use crate::{ast::ComponentDefinition, buffer::InnerBuffer, codegen::desugar::desugar_fields};
+use crate::{
+    ast::ComponentDefinition,
+    buffer::InnerBuffer,
+    codegen::{desugar::desugar_fields, props::component_props},
+};
 
 pub fn component_impl(input: TokenStream) -> TokenStream {
     let mut component_definition: ComponentDefinition = match syn::parse2(input) {
@@ -17,10 +21,12 @@ pub fn component_impl(input: TokenStream) -> TokenStream {
 
     let component_struct = component_struct(&component_definition);
     let component_component_impl = component_component_impl(&component_definition);
+    let props = component_props(&component_definition);
 
     quote! {
         #component_struct
         #component_component_impl
+        #props
     }
 }
 
