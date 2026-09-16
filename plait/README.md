@@ -252,6 +252,58 @@ In the component call, props appear before the `;`, and extra HTML
 attributes appear after. The component body uses `#attrs` to spread those
 extra attributes and `#children` to render the child content.
 
+### Reserved attributes
+
+Use `#[reserve_attrs(...)]` to reject selected caller attributes, while
+still allowing same-named props and internal element attributes:
+
+```rust
+use plait::{ToHtml, component, html};
+
+component! {
+    #[reserve_attrs(type, class, aria_disabled, "x-on:click")]
+    fn Button(class: &str = "primary") {
+        button(type: "button", class: class, #attrs) { #children }
+    }
+}
+
+// class is a prop; id is a forwarded attribute.
+let page = html! { @Button(class: "danger"; id: "save") { "Save" } };
+assert_eq!(page.to_html(), "<button type=\"button\" class=\"danger\" id=\"save\">Save</button>");
+
+// Wrappers inherit the restriction when they forward #attrs.
+component! {
+    fn Toolbar() { @Button(; #attrs) { #children } }
+}
+let page = html! { @Toolbar(; id: "save") { "Save" } };
+assert_eq!(page.to_html(), "<button type=\"button\" class=\"primary\" id=\"save\">Save</button>");
+```
+
+Names use underscore-to-hyphen conversion and ASCII-case-insensitive
+matching. The spelling of rendered attributes is unchanged.
+
+These calls fail a full build (using the components above):
+
+```rust
+// Case and identifier/literal aliases cannot bypass reservations.
+html! { @Button(; "TYPE": "submit") {} }.to_html();
+html! { @Button(; "aria-disabled": "true") {} }.to_html();
+
+// The restriction follows #attrs through wrappers and nested html! calls.
+html! { @Toolbar(; type: "submit") {} }.to_html();
+
+// Absent values still count as supplied attributes.
+html! { @Button(; class?: false) {} }.to_html();
+html! { @Button(; class?: None::<&str>) {} }.to_html();
+```
+
+Only names explicitly reserved by the receiving component are checked,
+even if it ignores `#attrs`. Attributes placed on a wrapper's own element
+do not reach its child. Empty lists and repeated declarations are allowed.
+
+**Build-time checks:** use `cargo build` or `cargo build --release`.
+`cargo check` may miss conflicts, as may code that is never instantiated.
+
 ### Prop defaults
 
 Use `= expression` to provide a default value for a prop when it is omitted

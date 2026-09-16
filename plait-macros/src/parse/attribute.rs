@@ -39,18 +39,24 @@ impl Parse for AttributeValue {
     }
 }
 
+/// Interpret names identically for declarations and rendered attributes. Keep
+/// spelling here; reservation membership performs ASCII case folding separately.
+pub(super) fn parse_name(input: ParseStream<'_>) -> syn::Result<LitStr> {
+    if input.peek(LitStr) {
+        input.parse()
+    } else {
+        let ident = input.call(Ident::parse_any)?;
+        let name = ident
+            .to_string()
+            .set_boundaries(&[Boundary::Underscore])
+            .to_case(Case::Kebab);
+        Ok(LitStr::new(&name, ident.span()))
+    }
+}
+
 impl Parse for NameValueAttribute {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let name = if input.peek(LitStr) {
-            input.parse()?
-        } else {
-            let name_ident = input.call(Ident::parse_any)?;
-            let name_string = name_ident
-                .to_string()
-                .set_boundaries(&[Boundary::Underscore])
-                .to_case(Case::Kebab);
-            LitStr::new(&name_string, name_ident.span())
-        };
+        let name = parse_name(input)?;
 
         if input.is_empty() || input.peek(Comma) {
             return Ok(Self {

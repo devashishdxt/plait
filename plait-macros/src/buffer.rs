@@ -415,8 +415,22 @@ impl InnerBuffer {
                 .__plait_resolve()
         };
 
+        // Collect syntactic names before optional/static rendering optimizations.
+        // Every spread in this call refers to the same declaration-scope bundle.
+        let mut names = Vec::new();
+        let mut bundle_constructor = quote!(::plait::__attrs::Bundle::new);
         let mut attributes_buffer = self.create_inner();
         for attribute in attributes {
+            match attribute {
+                Attribute::NameValue(attribute) => names.push(&attribute.name),
+                Attribute::Spread(attrs) => {
+                    let attrs = self
+                        .component_callbacks
+                        .as_ref()
+                        .map_or(attrs, |(attrs, _)| attrs);
+                    bundle_constructor = quote!(#attrs.with_names);
+                }
+            }
             attributes_buffer.push_attribute(attribute);
         }
         attributes_buffer.flush_static_str();
@@ -438,10 +452,26 @@ impl InnerBuffer {
             ::plait::Component::render_component(
                 #component_statement,
                 #writer,
-                |#writer: &mut (dyn ::core::fmt::Write + '_)| -> ::core::fmt::Result {
-                    #attributes_token_stream
-                    Ok(())
-                },
+                &#bundle_constructor(
+                    {
+                        // Stable Rust cannot use strings as const generics or
+                        // call ordinary closures in const evaluation. This zero-
+                        // sized marker exposes the exact names as a type's const.
+                        // Keep its scope separate from user expressions.
+                        struct __PlaitAttributeNames;
+                        impl ::plait::__attrs::Metadata for __PlaitAttributeNames {
+                            const NAMES: ::plait::__attrs::Names = ::plait::__attrs::Names {
+                                local: &[#(#names),*],
+                                inherited: &[],
+                            };
+                        }
+                        __PlaitAttributeNames
+                    },
+                    |#writer: &mut (dyn ::core::fmt::Write + '_)| -> ::core::fmt::Result {
+                        #attributes_token_stream
+                        Ok(())
+                    },
+                ),
                 |#writer: &mut (dyn ::core::fmt::Write + '_)| -> ::core::fmt::Result {
                     #children_token_stream
                     Ok(())
@@ -484,7 +514,7 @@ impl InnerBuffer {
                 let writer = &self.writer;
 
                 self.token_stream.extend(quote! {
-                    #attrs(#writer)?;
+                    #attrs.render(#writer)?;
                 });
             }
             Attribute::NameValue(name_value_attribute) => {

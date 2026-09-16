@@ -302,3 +302,173 @@ fn nested_fragments_forward_attributes_and_children() {
         "<section class=\"panel\"><p>Welcome</p></section>"
     );
 }
+
+mod reserved_attributes {
+    use super::*;
+
+    component! {
+        #[reserve_attrs(type, class, aria_disabled, "x-on:click",)]
+        #[reserve_attrs()]
+        #[reserve_attrs(type)]
+        fn ActionButton(class: &str = "btn") {
+            button(type: "button", class: class, #attrs) { #children }
+        }
+    }
+
+    component! {
+        fn ToolbarButton() {
+            // Repeat the spread deliberately to test ordering and evaluation.
+            @ActionButton(; data_action: "save", #attrs, data_tracking: "toolbar", #attrs) { #children }
+        }
+    }
+
+    component! {
+        fn Toolbar(visible: bool = true) {
+            (html! { if *visible { @ToolbarButton(; #attrs) { #children } } })
+        }
+    }
+
+    #[test]
+    fn toolbar_attributes_keep_order_and_repeated_spreads() {
+        assert_eq!(
+            html! { @ToolbarButton(; id: "save") { "Save" } }.to_html(),
+            "<button type=\"button\" class=\"btn\" data-action=\"save\" id=\"save\" data-tracking=\"toolbar\" id=\"save\">Save</button>"
+        );
+        assert_eq!(
+            html! { @Toolbar(; id: "save") { "Save" } }.to_html(),
+            "<button type=\"button\" class=\"btn\" data-action=\"save\" id=\"save\" data-tracking=\"toolbar\" id=\"save\">Save</button>"
+        );
+    }
+
+    // Deliberately use protocol-like names to test macro hygiene.
+    component! {
+        fn AttributePreview<__PlaitAttributes>(attrs: __PlaitAttributes, children: &str)
+        where
+            __PlaitAttributes: AsRef<str>,
+        {
+            if true {
+                for _ in 0..1 {
+                    match true {
+                        true => @ActionButton(; #attrs) { (attrs.as_ref()) (children) #children },
+                        false => {},
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn inner_buffers_preserve_attribute_hygiene() {
+        let __plait_attrs = "id";
+        let __plait_component = "text";
+        let __plait_children = "child";
+        type __PlaitAttributeNames = &'static str;
+        let __plait_attribute_names = "name";
+        assert_eq!(
+            html! {
+                @AttributePreview(attrs: __plait_component, children: __plait_children;
+                    id: __plait_attrs, data_name: {
+                        let value: __PlaitAttributeNames = __plait_attribute_names;
+                        value
+                    }) { "forwarded" }
+            }
+            .to_html(),
+            "<button type=\"button\" class=\"btn\" id=\"id\" data-name=\"name\">textchildforwarded</button>"
+        );
+    }
+
+    #[test]
+    fn component_references_keep_the_attribute_bundle() {
+        let component = ActionButton::__plait_props().__plait_resolve();
+        let mut output = String::new();
+        let attributes = plait::__attrs::Bundle::new((), |writer| writer.write_str(" id=\"save\""));
+        plait::Component::render_component(&&component, &mut output, &attributes, |writer| {
+            writer.write_str("Save")
+        })
+        .unwrap();
+        assert_eq!(
+            output,
+            "<button type=\"button\" class=\"btn\" id=\"save\">Save</button>"
+        );
+    }
+
+    component! {
+        fn ButtonGroup() {
+            div(role: "group", #attrs) { @ActionButton(class: "primary") { #children } }
+        }
+    }
+
+    component! {
+        fn SubmitButton() { button(type: "submit", #attrs) { #children } }
+    }
+
+    component! {
+        #[reserve_attrs(type)]
+        fn SaveButton() { button(type: "button") { #children } }
+    }
+
+    #[test]
+    fn reservations_only_apply_to_the_receiving_component() {
+        assert_eq!(
+            html! { @ButtonGroup(; type: "submit", class: "toolbar") { "Save" } }.to_html(),
+            "<div role=\"group\" type=\"submit\" class=\"toolbar\"><button type=\"button\" class=\"primary\">Save</button></div>"
+        );
+        assert_eq!(
+            html! { @SubmitButton(; type: "button", class: "primary") { "Save" } }.to_html(),
+            "<button type=\"submit\" type=\"button\" class=\"primary\">Save</button>"
+        );
+    }
+
+    #[test]
+    fn attributes_stay_lazy_and_preserve_evaluation_order() {
+        use std::cell::RefCell;
+        fn track<T>(events: &RefCell<Vec<&'static str>>, event: &'static str, value: T) -> T {
+            events.borrow_mut().push(event);
+            value
+        }
+        let events = RefCell::new(Vec::new());
+        let log = &events;
+        let page = html! {
+            @ToolbarButton(;
+                data_escaped: (track(log, "escaped", "<&")),
+                data_raw: #(track(log, "raw", "<&")),
+                title?: track(log, "some", Some("<&")),
+                hidden?: track(log, "boolean", true),
+                data_none?: track(log, "none", None::<&str>),
+                data_false?: false,
+            ) { (track(log, "child", "<&")) }
+        };
+        assert!(events.borrow().is_empty());
+        for _ in 0..2 {
+            assert_eq!(
+                page.to_html(),
+                concat!(
+                    "<button type=\"button\" class=\"btn\" data-action=\"save\"",
+                    " data-escaped=\"&lt;&amp;\" data-raw=\"<&\" title=\"&lt;&amp;\" hidden",
+                    " data-tracking=\"toolbar\"",
+                    " data-escaped=\"&lt;&amp;\" data-raw=\"<&\" title=\"&lt;&amp;\" hidden",
+                    ">&lt;&amp;</button>",
+                )
+            );
+            assert_eq!(
+                std::mem::take(&mut *events.borrow_mut()),
+                [
+                    "escaped", "raw", "some", "boolean", "none", "escaped", "raw", "some",
+                    "boolean", "none", "child",
+                ]
+            );
+        }
+        let ignored = html! { @SaveButton(; id: track(log, "unused", "save")) { "Save" } };
+        assert_eq!(ignored.to_html(), "<button type=\"button\">Save</button>");
+        assert!(events.borrow().is_empty());
+    }
+
+    #[test]
+    fn attribute_output_spelling_is_unchanged() {
+        assert_eq!(
+            html! { @ActionButton(; "DATA-ID": "save", aria_label: "Save", "@click": "save()") {} }
+                .to_html(),
+            "<button type=\"button\" class=\"btn\" DATA-ID=\"save\" aria-label=\"Save\" @click=\"save()\"></button>"
+        );
+    }
+}

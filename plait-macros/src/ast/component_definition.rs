@@ -1,9 +1,10 @@
-use syn::{Attribute, Expr, Generics, Ident, Type, Visibility};
+use syn::{Attribute, Expr, Generics, Ident, LitStr, Type, Visibility};
 
 use crate::ast::Node;
 
 pub struct ComponentDefinition {
     pub attributes: Vec<Attribute>,
+    pub reserved_attrs: Vec<LitStr>,
     pub visibility: Visibility,
     pub ident: Ident,
     pub generics: Generics,

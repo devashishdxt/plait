@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 use syn::{
     GenericParam, Generics, Ident, Index, Type,
     ext::IdentExt,
@@ -270,6 +270,26 @@ impl<'a> ComponentGenerator<'a> {
         let bindings = component.fields.iter().map(|f| &f.ident);
         let writer = fresh_ident("__plait_component", self.reserved);
         let attrs = fresh_ident("__plait_attrs", self.reserved);
+        let attrs_type = fresh_ident("__PlaitAttributes", self.reserved);
+        let validations = component.reserved_attrs.iter().map(|reserved| {
+            // Escape format braces in literal attribute names, retaining the
+            // exact name in the static diagnostic without const formatting.
+            let message = format!(
+                "reserved attribute `{}` on component `{}`",
+                reserved.value(),
+                name.unraw(),
+            )
+            .replace('{', "{{")
+            .replace('}', "}}");
+            quote_spanned! {reserved.span()=>
+                const {
+                    ::core::assert!(
+                        !<#attrs_type as ::plait::__attrs::Metadata>::NAMES.contains(#reserved),
+                        #message,
+                    );
+                }
+            }
+        });
         let children = fresh_ident("__plait_children", self.reserved);
         let aliases = self.callback_aliases(&attrs, &children);
         let mut buffer = InnerBuffer::new(writer.clone());
@@ -280,12 +300,16 @@ impl<'a> ComponentGenerator<'a> {
 
         quote! {
             impl #impl_generics ::plait::Component for #name<#(#user_args,)* (#(#types,)*), ::plait::__props::Resolved> #where_clause {
-                fn render_component(
+                fn render_component<#attrs_type>(
                     &self,
                     #writer: &mut (dyn ::core::fmt::Write + '_),
-                    #attrs: impl ::core::ops::Fn(&mut (dyn ::core::fmt::Write + '_)) -> ::core::fmt::Result,
+                    #attrs: &::plait::__attrs::Bundle<#attrs_type, impl ::core::ops::Fn(&mut (dyn ::core::fmt::Write + '_)) -> ::core::fmt::Result>,
                     #children: impl ::core::ops::Fn(&mut (dyn ::core::fmt::Write + '_)) -> ::core::fmt::Result,
-                ) -> ::core::fmt::Result {
+                ) -> ::core::fmt::Result
+                where
+                    #attrs_type: ::plait::__attrs::Metadata,
+                {
+                    #(#validations)*
                     #aliases
                     let (#(#bindings,)*) = &self.__plait_values;
                     #statements
@@ -297,6 +321,8 @@ impl<'a> ComponentGenerator<'a> {
 
     fn callback_aliases(&self, attrs: &Ident, children: &Ident) -> TokenStream {
         // Nested html! expressions retain their declaration-scope callbacks.
+        // Borrow the attribute bundle itself (not a rendering adapter) so its
+        // associated metadata survives nested templates and repeated references.
         // Direct directives use hygienic names even for props named attrs/children.
         [("attrs", attrs), ("children", children)]
             .into_iter()

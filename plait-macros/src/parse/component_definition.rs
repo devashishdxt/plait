@@ -8,7 +8,21 @@ use crate::ast::{ComponentDefinition, ComponentDefinitionField};
 
 impl Parse for ComponentDefinition {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let attributes = input.call(Attribute::parse_outer)?;
+        let mut attributes = Vec::new();
+        let mut reserved_attrs = Vec::new();
+        for attribute in input.call(Attribute::parse_outer)? {
+            if attribute.path().is_ident("reserve_attrs") {
+                let names = attribute.parse_args_with(|input: ParseStream| {
+                    syn::punctuated::Punctuated::<syn::LitStr, Comma>::parse_terminated_with(
+                        input,
+                        super::attribute::parse_name,
+                    )
+                })?;
+                reserved_attrs.extend(names);
+            } else {
+                attributes.push(attribute);
+            }
+        }
         let visibility = input.parse()?;
         let _ = input.parse::<Fn>()?;
         let ident = input.parse()?;
@@ -48,6 +62,7 @@ impl Parse for ComponentDefinition {
 
         Ok(Self {
             attributes,
+            reserved_attrs,
             visibility,
             ident,
             generics,
@@ -89,6 +104,62 @@ mod tests {
         let ty = &definition.fields[1].ty;
         assert_eq!(quote!(#ty).to_string(), "Option < impl PartialHtml >");
         assert!(definition.fields[2].default.is_none());
+    }
+
+    #[test]
+    fn reservation_names_and_unrelated_attributes() {
+        let definition: ComponentDefinition = syn::parse2(quote! {
+            /// retained docs
+            #[derive(Debug)]
+            #[reserve_attrs(type, class, aria_disabled, "x-on:click", "TYPE",)]
+            #[reserve_attrs()]
+            #[reserve_attrs(class)]
+            fn Example() {}
+        })
+        .unwrap();
+        assert_eq!(definition.attributes.len(), 2);
+        let names: Vec<_> = definition
+            .reserved_attrs
+            .iter()
+            .map(syn::LitStr::value)
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "type",
+                "class",
+                "aria-disabled",
+                "x-on:click",
+                "TYPE",
+                "class"
+            ]
+        );
+        for (reservation, forwarded) in [
+            ("aria-disabled", quote!(aria_disabled)),
+            ("aria-disabled", quote!("aria-disabled")),
+            ("type", quote!("TYPE")),
+            ("type", quote!(type)),
+            ("x-on:click", quote!("x-on:click")),
+        ] {
+            let attr: crate::ast::NameValueAttribute = syn::parse2(forwarded).unwrap();
+            assert!(attr.name.value().eq_ignore_ascii_case(reservation));
+        }
+        let attr: crate::ast::NameValueAttribute = syn::parse2(quote!("TYPE")).unwrap();
+        assert_eq!(attr.name.value(), "TYPE");
+    }
+
+    #[test]
+    fn invalid_reservations_fail() {
+        for annotation in [
+            quote!(#[reserve_attrs(123)]),
+            quote!(#[reserve_attrs(class = "x")]),
+            quote!(#[reserve_attrs(foo::bar)]),
+            quote!(#[reserve_attrs(type class)]),
+            quote!(#[reserve_attrs]),
+            quote!(#[reserve_attrs = "type"]),
+        ] {
+            assert!(syn::parse2::<ComponentDefinition>(quote!(#annotation fn Bad() {})).is_err());
+        }
     }
 
     #[test]

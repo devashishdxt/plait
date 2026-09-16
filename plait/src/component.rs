@@ -1,20 +1,24 @@
 use std::fmt;
 
+use crate::__attrs::{Bundle, Metadata};
+
 /// Trait for reusable HTML components. Used by macro-generated code. Do NOT
 /// implement this manually.
 #[doc(hidden)]
 pub trait Component {
     /// Renders the component, writing HTML into `f`.
     ///
-    /// * `attrs` - closure that writes extra HTML attributes from the call
-    ///   site.
+    /// * `attrs` - typed bundle of extra HTML attribute names and their lazy
+    ///   rendering closure from the call site.
     /// * `children` - closure that writes child content from the call site.
-    fn render_component(
+    fn render_component<M>(
         &self,
         f: &mut (dyn fmt::Write + '_),
-        attrs: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+        attrs: &Bundle<M, impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result>,
         children: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
-    ) -> fmt::Result;
+    ) -> fmt::Result
+    where
+        M: Metadata;
 }
 
 /// Implementation details shared by macro-generated components.
@@ -30,7 +34,10 @@ pub mod props {
         fn make(self) -> Self::Output;
     }
 
-    impl<F: FnOnce() -> T, T> Factory for F {
+    impl<F, T> Factory for F
+    where
+        F: FnOnce() -> T,
+    {
         type Output = T;
 
         fn make(self) -> T {
@@ -43,7 +50,10 @@ pub mod props {
         fn resolve(self, factory: F) -> Self::Output;
     }
 
-    impl<F: Factory> Resolve<F> for Missing {
+    impl<F> Resolve<F> for Missing
+    where
+        F: Factory,
+    {
         type Output = F::Output;
 
         fn resolve(self, factory: F) -> Self::Output {
@@ -67,12 +77,15 @@ impl<T> Component for &T
 where
     T: Component,
 {
-    fn render_component(
+    fn render_component<M>(
         &self,
         f: &mut (dyn fmt::Write + '_),
-        attrs: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
+        attrs: &Bundle<M, impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result>,
         children: impl Fn(&mut (dyn fmt::Write + '_)) -> fmt::Result,
-    ) -> fmt::Result {
+    ) -> fmt::Result
+    where
+        M: Metadata,
+    {
         (**self).render_component(f, attrs, children)
     }
 }

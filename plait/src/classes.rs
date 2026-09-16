@@ -123,7 +123,10 @@ where
 
 macro_rules! impl_class_for_tuple {
     ($($idx:tt: $T:ident),+) => {
-        impl<$($T: $crate::Class),+> $crate::Class for ($($T,)+) {
+        impl<$($T),+> $crate::Class for ($($T,)+)
+        where
+            $($T: $crate::Class,)+
+        {
             fn should_skip(&self) -> bool {
                 true $( && $crate::Class::should_skip(&self.$idx) )+
             }

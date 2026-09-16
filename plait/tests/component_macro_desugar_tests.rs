@@ -461,7 +461,7 @@ fn anonymous_defaults_select_independent_types() {
 }
 
 component! {
-    pub fn MetricCard<'a, T: Default + RenderEscaped, const N: usize>(
+    pub fn MetricCard<'a, T, const N: usize>(
         current: T,
         previous: T = T::default(),
         label: &'a str = "Requests",
@@ -469,7 +469,10 @@ component! {
         annotation: &impl RenderEscaped = &"No change",
         thresholds: &[u8] = &[1, 2],
         unit: Option<&str> = None,
-    ) {
+    )
+    where
+        T: Default + RenderEscaped,
+    {
         section(class: "metric", data_samples: history.len(), data_thresholds: thresholds.len()) {
             h2 { (label) }
             p {
@@ -527,7 +530,7 @@ fn __plait_default_0() -> &'static str {
 type P1 = bool;
 
 component! {
-    fn HygienicDefaults<'plait_0, r#P0: RenderEscaped, __PlaitProps: RenderEscaped, __PlaitState0: RenderEscaped>(
+    fn HygienicDefaults<'plait_0, r#P0, __PlaitProps, __PlaitState0>(
         __plait_props: &str = __plait_default_0(),
         __plait_resolve: impl AsRef<str> = "resolver",
         __plait_component: &'plait_0 str = "writer",
@@ -535,7 +538,12 @@ component! {
         flag: P1 = true,
         attrs: __PlaitProps,
         children: __PlaitState0,
-    ) {
+    )
+    where
+        r#P0: RenderEscaped,
+        __PlaitProps: RenderEscaped,
+        __PlaitState0: RenderEscaped,
+    {
         div(#attrs) {
             (__plait_props) (__plait_resolve.as_ref()) (__plait_component)
             if *flag { (r#type) (attrs) (children) #children }
