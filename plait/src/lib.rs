@@ -463,7 +463,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! plait = { version = "0.9", features = ["axum"] }
+//! plait = { version = "0.10", features = ["axum"] }
 //! ```
 //!
 //! Available features: `actix-web`, `axum`, `rocket`.
